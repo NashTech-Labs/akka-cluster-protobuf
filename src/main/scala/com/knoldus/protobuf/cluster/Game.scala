@@ -12,12 +12,12 @@ class Game extends Actor with ActorLogging {
 
     override def receive : Receive = {
         case Success =>
-            log.info("\n ========================= Message =======================")
+            log.info("\n ========================= Wo hoo, I got the success =======================")
     }
 
     override def preStart() : Unit = {
         log.info("\n >>>>>>>>>>>>> Bang to The GameLauncher <<<<<<<<<<<<<<<<<" + pingPong.path)
-        pingPong ! GameMessage("Ping")
+        pingPong ! GameMessage("Ping", self)
     }
 }
 
