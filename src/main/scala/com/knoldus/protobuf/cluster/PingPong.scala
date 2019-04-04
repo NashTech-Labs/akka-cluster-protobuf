@@ -10,6 +10,8 @@ class PingPong extends Actor with ActorLogging {
         case GameMessage(msg, ref) =>
             log.info(s"\n ========================= GameMessage($msg) =======================")
             ref ! Success
+        case msg =>
+            log.info("\n ------------------------- {} ---------------------------", msg)
     }
 }
 
