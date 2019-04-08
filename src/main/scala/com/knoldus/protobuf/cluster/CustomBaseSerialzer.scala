@@ -6,11 +6,12 @@ import akka.remote.WireFormats.ActorRefData
 import akka.remote.serialization.ProtobufSerializer
 import akka.serialization.BaseSerializer
 import com.google.protobuf
-import com.knoldus.protobuf.models.example.ProtoGameMessage
+import com.knoldus.protobuf.models.example.{ProtoGameMessage, Success}
 
 class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerializer
 {
     final val GameMessageManifest = classOf[GameMessage].getName
+    final val SuccessManifest = classOf[Success].getName
 
     override def toBinary(o : AnyRef) : Array[Byte] = {
         o match {
@@ -20,6 +21,7 @@ class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerialize
                 val newMessage = ProtoGameMessage(game.msg, protobuf.ByteString.copyFrom(refData.toByteString.toByteArray))
                 newMessage.toByteArray
             }
+            case success : Success => success.toByteArray
         }
     }
 
@@ -34,6 +36,8 @@ class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerialize
                     val refData = ActorRefData.parseFrom(ByteString.copyFrom(message.ref.toByteArray))
                     val ref = ProtobufSerializer.deserializeActorRef(system, refData)
                     GameMessage(message.id, ref)
+                }else if(clazz.getName == SuccessManifest){
+                    Success.parseFrom(bytes)
                 } else {
                     throw new ClassNotFoundException("invalid manifest name")
                 }

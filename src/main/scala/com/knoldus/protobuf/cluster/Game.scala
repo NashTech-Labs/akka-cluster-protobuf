@@ -3,7 +3,7 @@ package com.knoldus.protobuf.cluster
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
-import com.knoldus.protobuf.cluster.Game.Success
+import com.knoldus.protobuf.models.example.Success
 import com.typesafe.config.ConfigFactory
 
 class Game extends Actor with ActorLogging {
@@ -24,8 +24,6 @@ class Game extends Actor with ActorLogging {
 }
 
 object Game {
-    case object Success
-
     def main(args: Array[String]): Unit = {
         val config = ConfigFactory.parseString("akka.cluster.roles = [game]")
         .withFallback(ConfigFactory.load("application.conf"))
