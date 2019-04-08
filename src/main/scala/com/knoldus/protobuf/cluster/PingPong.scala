@@ -1,15 +1,17 @@
 package com.knoldus.protobuf.cluster
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import com.knoldus.protobuf.cluster.Game.Success
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import com.knoldus.protobuf.models.example.Success
 import com.typesafe.config.ConfigFactory
 
 class PingPong extends Actor with ActorLogging {
 
     override def receive : Receive = {
-        case GameMessage(msg) =>
+        case GameMessage(msg, ref) =>
             log.info(s"\n ========================= GameMessage($msg) =======================")
-            sender() ! Success
+            ref ! Success()
+        case msg =>
+            log.info("\n ------------------------- {} ---------------------------", msg)
     }
 }
 
@@ -28,4 +30,4 @@ object PingPong{
 
 }
 
-case class GameMessage(msg: String)
+case class GameMessage(msg: String, ref: ActorRef)

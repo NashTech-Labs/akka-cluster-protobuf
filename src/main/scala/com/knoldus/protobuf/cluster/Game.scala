@@ -3,7 +3,7 @@ package com.knoldus.protobuf.cluster
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
-import com.knoldus.protobuf.cluster.Game.Success
+import com.knoldus.protobuf.models.example.Success
 import com.typesafe.config.ConfigFactory
 
 class Game extends Actor with ActorLogging {
@@ -12,19 +12,18 @@ class Game extends Actor with ActorLogging {
 
     override def receive : Receive = {
         case Success =>
-            log.info("\n ========================= Message =======================")
+            log.info("\n ========================= Wo hoo, I got the success =======================")
     }
 
     override def preStart() : Unit = {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
-        pingPong ! GameMessage("Ping")
+        log.info("\n ----------------- About to bang -----------------------")
+        pingPong ! GameMessage("Ping", self)
     }
 }
 
 object Game {
-    case object Success
-
     def main(args: Array[String]): Unit = {
         val config = ConfigFactory.parseString("akka.cluster.roles = [game]")
         .withFallback(ConfigFactory.load("application.conf"))

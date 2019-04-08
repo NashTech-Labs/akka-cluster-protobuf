@@ -9,7 +9,12 @@ libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-remote" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-    "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion
+    "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
+    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+)
+
+PB.targets in Compile := Seq(
+    scalapb.gen() -> (sourceManaged in Compile).value
 )
 
 fork in run := true
