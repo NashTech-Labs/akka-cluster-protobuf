@@ -21,7 +21,9 @@ class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerialize
                 val newMessage = ProtoGameMessage(game.msg, protobuf.ByteString.copyFrom(refData.toByteString.toByteArray))
                 newMessage.toByteArray
             }
-            case success : Success => success.toByteArray
+            case success : Success => {
+                success.toByteArray
+            }
         }
     }
 

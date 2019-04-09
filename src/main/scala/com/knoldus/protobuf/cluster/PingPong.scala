@@ -8,8 +8,8 @@ class PingPong extends Actor with ActorLogging {
 
     override def receive : Receive = {
         case GameMessage(msg, ref) =>
-            log.info(s"\n ========================= GameMessage($msg) =======================")
-            ref ! Success()
+            log.info(s"\n ========================= GameMessage(${ref.path}) =======================")
+            ref ! Success("Wo hoo, I got the success")
         case msg =>
             log.info("\n ------------------------- {} ---------------------------", msg)
     }
