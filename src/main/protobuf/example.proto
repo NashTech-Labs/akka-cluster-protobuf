@@ -7,4 +7,6 @@ message ProtoGameMessage {
   bytes ref = 2;
 }
 
-message Success {}
+message Success {
+  string msg = 1;
+}

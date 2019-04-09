@@ -11,8 +11,8 @@ class Game extends Actor with ActorLogging {
     val pingPong = context.actorOf(FromConfig.props(), name = "PingPongRouter")
 
     override def receive : Receive = {
-        case Success =>
-            log.info("\n ========================= Wo hoo, I got the success =======================")
+        case Success(msg) =>
+            log.info(s"\n ========================= $msg =======================")
     }
 
     override def preStart() : Unit = {
