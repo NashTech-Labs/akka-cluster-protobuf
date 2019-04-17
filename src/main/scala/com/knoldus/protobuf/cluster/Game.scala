@@ -18,7 +18,7 @@ class Game extends Actor with ActorLogging {
     override def preStart() : Unit = {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
-        log.info("\n ----------------- About to bang -----------------------")
+        log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
         pingPong ! GameMessage("Ping", self)
     }
 }

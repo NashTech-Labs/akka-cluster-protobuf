@@ -30,4 +30,6 @@ object PingPong{
 
 }
 
-case class GameMessage(msg: String, ref: ActorRef)
+trait MarkerTrait
+
+case class GameMessage(msg: String, ref: ActorRef) extends MarkerTrait
