@@ -1,6 +1,8 @@
 package com.knoldus.protobuf.cluster;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
@@ -11,31 +13,72 @@ import java.util.Arrays;
 
 public class ReflectionJavaUtility {
 
-    private ReflectionJavaUtility() {}
+    public static final String PROTO_SUFFIX = "Proto";
+
+    private ReflectionJavaUtility() {
+    }
+
+/*    public static byte[] invokeToByteArrayMethod(Class<?> clazz) throws Exception {
+        Method method = clazz.getDeclaredMethod("toByteArray", null);
+        return (byte[]) method.invoke(null, null);
+    }*/
 
     public static Object createInstanceOfProtoClassFromClass(String className, Class o, Object data) throws Exception {
-        Class<?> protoClass = Class.forName(className + "Proto");
+        Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
             throw new RuntimeException();
         } else {
-            return createInstanceOfProtoClassFromClass(o, protoClass, data);
+            return createInstanceOfProtoClassFromClass(o, protoClass, data, null);
         }
     }
 
-    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data) throws Exception {
+    public static Object createInstanceOfClassFromProtoClass(String className, Class o, Object data, ExtendedActorSystem system) throws Exception {
+        Class<?> projectClass = Class.forName(className.substring(0, (className.length() - PROTO_SUFFIX.length())));
+        if (projectClass.getConstructors().length != 1) {
+            throw new RuntimeException();
+        } else {
+            return createInstanceOfProtoClassFromClass(o, projectClass, data, system);
+        }
+    }
+
+    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
-                .map(field -> method(field, data))
+                .map(field -> {
+                    field.setAccessible(true);
+                    try {
+                        Object value = extractValueFromPrimitiveField(field, data);
+                        if (value == null) {
+                            return extractValueFromObjectField(field, data, system);
+                        }
+                        return value;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return Option.empty();
+                    }
+                })
                 .toArray();
         return protoClassConstructor.newInstance(protoClassData);
     }
 
-    private static Object method(Field field, Object data) {
-        field.setAccessible(true);
+    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) throws Exception {
         if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
-            return actorRefPathToByteString(getActorRefDataValue(field, data));
-        } else if (field.getType() == boolean.class) {
+            return getActorRefDataValue(field, data);
+        } else if (field.getType() == ByteString.class) {
+            System.out.println("I am in ByteString type : " + field.getType());
+            return evaluateByteStringType(field, data, system);
+        } else if (field.getType() == Option.class) {
+            System.out.println("I am in Option type : " + field.getType());
+            return evaluateScalaOptionType(field, data, system);
+        } else {
+            System.out.println("I am in Object type : " + field.getType());
+            return getObjectValue(field, data);
+        }
+    }
+
+    private static Object extractValueFromPrimitiveField(Field field, Object data) {
+        if (field.getType() == boolean.class) {
             System.out.println("I am in boolean type : " + field.getType());
             return getBooleanValue(field, data);
         } else if (field.getType() == byte.class) {
@@ -59,45 +102,60 @@ public class ReflectionJavaUtility {
         } else if (field.getType() == double.class) {
             System.out.println("I am in double type : " + field.getType());
             return getDoubleValue(field, data);
-        } else if (field.getType() == Option.class) {
-            System.out.println("I am in Option type : " + field.getType());
-            try {
-                return evaluateScalaOptionType(field, data);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                return null;
-            }
         } else {
-            System.out.println("I am in Object type : " + field.getType());
-            return getObjectValue(field, data);
+            System.out.println("No matched value in primitive : " + field.getType());
+            return null;
         }
     }
 
-    private static ByteString actorRefPathToByteString(WireFormats.ActorRefData refData) {
+    private static ByteString actorRefToByteString(ActorRef actorRef) {
+        WireFormats.ActorRefData refData = ProtobufSerializer.serializeActorRef(actorRef);
         return ByteString.copyFrom(refData.toByteString().toByteArray());
     }
 
-    private static Object evaluateScalaOptionType(Field field, Object data) throws Exception {
-        Type actualTypeArgument = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-        if (actualTypeArgument == ActorRef.class) {
-            Option option = ((Option) field.get(data)).map(ref -> {
-                ActorRef actorRef = (ActorRef) ref;
-                WireFormats.ActorRefData refData = ProtobufSerializer.serializeActorRef(actorRef);
-                return actorRefPathToByteString(refData);
-            });
-            return option;
-        } else {
-            return getObjectValue(field, data);
-        }
-    }
-
-    private static WireFormats.ActorRefData getActorRefDataValue(Field field, Object data) {
+    private static ByteString getActorRefDataValue(Field field, Object data) {
         try {
-            WireFormats.ActorRefData refData = ProtobufSerializer.serializeActorRef(((ActorRef) field.get(data)));
-            return refData;
+            return actorRefToByteString((ActorRef) field.get(data));
         } catch (Exception ex) {
             ex.printStackTrace();
             return null;
+        }
+    }
+
+    private static Object byteStringToActorRef(ByteString byteString, ExtendedActorSystem system) {
+        try {
+            WireFormats.ActorRefData refData = WireFormats.ActorRefData.parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
+            return ProtobufSerializer.deserializeActorRef(system, refData);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+
+    }
+
+    private static Object evaluateByteStringType(Field field, Object data, ExtendedActorSystem system) {
+        try {
+            return byteStringToActorRef((ByteString) field.get(data), system);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+    }
+
+    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) throws Exception {
+        Type actualTypeArgument = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+        if (actualTypeArgument == ActorRef.class) {
+            return ((Option) field.get(data)).map(ref -> {
+                ActorRef actorRef = (ActorRef) ref;
+                return actorRefToByteString(actorRef);
+            });
+        } else if (actualTypeArgument == ByteString.class) {
+            return ((Option) field.get(data)).map(byteString -> {
+                ByteString bytString = (ByteString) byteString;
+                return byteStringToActorRef(bytString, system);
+            });
+        } else {
+            return getObjectValue(field, data);
         }
     }
 
