@@ -6,7 +6,6 @@ import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import scala.Option;
-import scalapb.GeneratedMessage;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -64,81 +63,62 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         return protoClassConstructor.newInstance(protoClassData);
     }
 
-    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) throws Exception {
-        if (field.getType() == ActorRef.class) {
-            System.out.println("I am in ActorRef type : " + field.getType());
-            return getActorRefDataValue(field, data);
-        } else if (field.getType() == ByteString.class) {
-            System.out.println("I am in ByteString type : " + field.getType());
-            return evaluateByteStringType(field, data, system);
-        } else if (field.getType() == Option.class) {
-            System.out.println("I am in Option type : " + field.getType());
-            return evaluateScalaOptionType(field, data, system);
-        } else {
-            System.out.println("I am in Object type : " + field.getType());
-            return getObjectValue(field, data);
-        }
-    }
-
     private static Object extractValueFromPrimitiveField(Field field, Object data) {
         if (field.getType() == boolean.class) {
             System.out.println("I am in boolean type : " + field.getType());
-            return getBooleanValue(field, data);
+            return extractValueFromField(obj -> field.getBoolean(obj), field, data);
         } else if (field.getType() == byte.class) {
             System.out.println("I am in byte type : " + field.getType());
-            return getByteValue(field, data);
+            return extractValueFromField(obj -> field.getByte(obj), field, data);
         } else if (field.getType() == char.class) {
             System.out.println("I am in char type : " + field.getType());
-            return getCharValue(field, data);
+            return extractValueFromField(obj -> field.getChar(obj), field, data);
         } else if (field.getType() == short.class) {
             System.out.println("I am in short type : " + field.getType());
-            return getShortValue(field, data);
+            return extractValueFromField(obj -> field.getShort(obj), field, data);
         } else if (field.getType() == int.class) {
             System.out.println("I am in int type : " + field.getType());
-            return getIntValue(field, data);
+            return extractValueFromField(obj -> field.getInt(obj), field, data);
         } else if (field.getType() == long.class) {
             System.out.println("I am in long type : " + field.getType());
-            return getLongValue(field, data);
+            return extractValueFromField(obj -> field.getLong(obj), field, data);
         } else if (field.getType() == float.class) {
             System.out.println("I am in float type : " + field.getType());
-            return getFloatValue(field, data);
+            return extractValueFromField(obj -> field.getFloat(obj), field, data);
         } else if (field.getType() == double.class) {
             System.out.println("I am in double type : " + field.getType());
-            return getDoubleValue(field, data);
+            return extractValueFromField(obj -> field.getDouble(obj), field, data);
         } else {
             System.out.println("No matched value in primitive : " + field.getType());
             return null;
         }
     }
 
+    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) throws Exception {
+        if (field.getType() == ActorRef.class) {
+            System.out.println("I am in ActorRef type : " + field.getType());
+            return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
+        } else if (field.getType() == ByteString.class) {
+            System.out.println("I am in ByteString type : " + field.getType());
+            return extractValueFromField(obj -> byteStringToActorRef((ByteString) field.get(obj), system), field, data);
+        } else if (field.getType() == Option.class) {
+            System.out.println("I am in Option type : " + field.getType());
+            return evaluateScalaOptionType(field, data, system);
+        } else {
+            System.out.println("I am in Object type : " + field.getType());
+            return extractValueFromField(obj -> field.get(obj), field, data);
+        }
+    }
+    
     private static ByteString actorRefToByteString(ActorRef actorRef) {
         WireFormats.ActorRefData refData = ProtobufSerializer.serializeActorRef(actorRef);
         return ByteString.copyFrom(refData.toByteString().toByteArray());
-    }
-
-    private static ByteString getActorRefDataValue(Field field, Object data) {
-        try {
-            return actorRefToByteString((ActorRef) field.get(data));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
-        }
     }
 
     private static Object byteStringToActorRef(ByteString byteString, ExtendedActorSystem system) {
         try {
             WireFormats.ActorRefData refData = WireFormats.ActorRefData.parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
             return ProtobufSerializer.deserializeActorRef(system, refData);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
-        }
-
-    }
-
-    private static Object evaluateByteStringType(Field field, Object data, ExtendedActorSystem system) {
-        try {
-            return byteStringToActorRef((ByteString) field.get(data), system);
         } catch (Exception ex) {
             ex.printStackTrace();
             return null;
@@ -158,88 +138,17 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                 return byteStringToActorRef(bytString, system);
             });
         } else {
-            return getObjectValue(field, data);
+            return extractValueFromField(obj -> field.get(obj), field, data);
         }
     }
 
-    private static boolean getBooleanValue(Field field, Object data) {
-        try {
-            return field.getBoolean(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private static byte getByteValue(Field field, Object data) {
-        try {
-            return field.getByte(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static char getCharValue(Field field, Object data) {
-        try {
-            return field.getChar(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return 'x';
-        }
-    }
-
-    private static short getShortValue(Field field, Object data) {
-        try {
-            return field.getShort(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static int getIntValue(Field field, Object data) {
-        try {
-            return field.getInt(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static long getLongValue(Field field, Object data) {
-        try {
-            return field.getLong(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static float getFloatValue(Field field, Object data) {
-        try {
-            return field.getFloat(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static double getDoubleValue(Field field, Object data) {
-        try {
-            return field.getDouble(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private static Object getObjectValue(Field field, Object data) {
-        try {
-            return field.get(data);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
+    private static <R> R extractValueFromField(CheckedFunction<R, Object> function, Field field, Object data) {
+        try{
+            return function.apply(data);
+        }catch (Exception ex) {
+            ex.printStackTrace();
+            String errorMessage = "Class " + data.getClass().getName() + " field "+ field.getName() + "contains Invalid data";
+            throw new InvalidFieldDataException(errorMessage, ex);
         }
     }
 }
