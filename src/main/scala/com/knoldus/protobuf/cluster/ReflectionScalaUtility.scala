@@ -8,10 +8,10 @@ import scala.reflect.runtime.universe._
 
 object ReflectionScalaUtility
 {
-    def invokeToByteArrayMethod(clazz : Class[_], anyRef: AnyRef) : Array[Byte] = {
+    def invokeToByteArrayMethod(clazz : Class[_], obj: AnyRef) : Array[Byte] = {
         println(" >>>>>>>>>>>>>>>>> In invokeToByteArrayMethod Method <<<<<<<<<<<<<<<<<<<<")
         val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
-        val instanceMirror : universe.InstanceMirror = runtimeMirror.reflect(anyRef)
+        val instanceMirror : universe.InstanceMirror = runtimeMirror.reflect(obj)
         val methodSymbol : universe.MethodSymbol = instanceMirror.symbol.typeSignature.member(TermName("toByteArray")).asMethod
         instanceMirror.reflectMethod(methodSymbol).apply().asInstanceOf[Array[Byte]]
     }

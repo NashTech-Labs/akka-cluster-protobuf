@@ -6,6 +6,7 @@ import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import scala.Option;
+import scalapb.GeneratedMessage;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -23,21 +24,21 @@ public class ReflectionJavaUtility implements ReflectionUtility {
     private ReflectionJavaUtility() {
     }
 
-    public static Object createInstanceOfProtoClassFromClass(String className, Class o, Object data) throws Exception {
+    public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
             throw new RuntimeException();
         } else {
-            return createInstanceOfProtoClassFromClass(o, protoClass, data, null);
+            return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null);
         }
     }
 
-    public static Object createInstanceOfClassFromProtoClass(String className, Class o, Object data, ExtendedActorSystem system) throws Exception {
-        Class<?> projectClass = Class.forName(className.substring(0, (className.length() - PROTO_SUFFIX.length())));
-        if (projectClass.getConstructors().length != 1) {
+    public static Object createInstanceOfClassFromProtoClass(String className, Class<?> protobufSerializableClazz, Object protobufSerializableData, ExtendedActorSystem system) throws Exception {
+        Class<?> clazz = Class.forName(className.substring(0, (className.length() - PROTO_SUFFIX.length())));
+        if (clazz.getConstructors().length != 1) {
             throw new RuntimeException();
         } else {
-            return createInstanceOfProtoClassFromClass(o, projectClass, data, system);
+            return createInstanceOfProtoClassFromClass(protobufSerializableClazz, clazz, protobufSerializableData, system);
         }
     }
 

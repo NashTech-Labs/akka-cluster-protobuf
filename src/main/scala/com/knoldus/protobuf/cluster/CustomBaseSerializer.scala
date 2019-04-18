@@ -2,7 +2,6 @@ package com.knoldus.protobuf.cluster
 
 import akka.actor.ExtendedActorSystem
 import akka.serialization.BaseSerializer
-import com.knoldus.protobuf.cluster.ReflectionUtility.PROTO_SUFFIX
 import com.knoldus.protobuf.cluster.ReflectionJavaUtility.{createInstanceOfClassFromProtoClass, createInstanceOfProtoClassFromClass}
 
 class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializer
@@ -24,7 +23,7 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
         manifest match {
             case Some(clazz) if classOf[ProtobufSerializable].isAssignableFrom(clazz) => {
                 println(s">>>>>>>>>>>>>>>>>>> De-Serialize ${clazz.getName} Message <<<<<<<<<<<<<<<<<<<< ")
-                val data : AnyRef = ReflectionScalaUtility.invokeParseFromMethod(clazz, bytes);
+                val data : AnyRef = ReflectionScalaUtility.invokeParseFromMethod(clazz, bytes)
                 createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system)
             }
             case _ => throw new ClassNotFoundException("Invalid class type for De-Serialize")
