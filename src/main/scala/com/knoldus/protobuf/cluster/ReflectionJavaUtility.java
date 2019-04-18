@@ -1,19 +1,24 @@
 package com.knoldus.protobuf.cluster;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import scala.Option;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.List;
 
-public class ReflectionJavaUtility {
-
-    public static final String PROTO_SUFFIX = "Proto";
+public class ReflectionJavaUtility implements ReflectionUtility {
+    static final List<String> predefineIgnoredFields = Arrays.asList(
+            "serialVersionUID",
+            "__serializedSizeCachedValue"
+    );
 
     private ReflectionJavaUtility() {
     }
@@ -38,7 +43,9 @@ public class ReflectionJavaUtility {
 
     private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
+
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
+                .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .map(field -> {
                     field.setAccessible(true);
                     try {

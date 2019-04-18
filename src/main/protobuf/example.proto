@@ -13,7 +13,7 @@ option (scalapb.options) = {
 };
 
 message GameMessageProto {
-  string id = 1;
+  string msg = 1;
   bytes ref = 2;
 }
 
