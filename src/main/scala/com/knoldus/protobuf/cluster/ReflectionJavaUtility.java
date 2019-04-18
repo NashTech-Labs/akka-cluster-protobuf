@@ -18,11 +18,6 @@ public class ReflectionJavaUtility {
     private ReflectionJavaUtility() {
     }
 
-/*    public static byte[] invokeToByteArrayMethod(Class<?> clazz) throws Exception {
-        Method method = clazz.getDeclaredMethod("toByteArray", null);
-        return (byte[]) method.invoke(null, null);
-    }*/
-
     public static Object createInstanceOfProtoClassFromClass(String className, Class o, Object data) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {

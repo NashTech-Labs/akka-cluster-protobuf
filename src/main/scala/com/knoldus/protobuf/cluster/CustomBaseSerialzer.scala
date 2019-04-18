@@ -1,29 +1,28 @@
 package com.knoldus.protobuf.cluster
 
-import akka.actor.{ActorRef, ExtendedActorSystem}
+import akka.actor.ExtendedActorSystem
 import akka.protobuf.ByteString
 import akka.remote.WireFormats.ActorRefData
 import akka.remote.serialization.ProtobufSerializer
 import akka.serialization.BaseSerializer
-import com.google.protobuf
-import com.knoldus.protobuf.models.example.{ProtoGameMessage, Success}
+import com.knoldus.protobuf.cluster.ReflectionJavaUtility.createInstanceOfProtoClassFromClass
 
 class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerializer
 {
     final val GameMessageManifest = classOf[GameMessage].getName
-    final val SuccessManifest = classOf[Success].getName
+    final val SuccessManifest = classOf[GameSuccessProto].getName
 
     override def toBinary(o : AnyRef) : Array[Byte] = {
         o match {
-            case game : GameMessage => {
-                println(s">>>>>>>>>>>>>>>>>>> Serialize $game Message <<<<<<<<<<<<<<<<<<<< ")
-                val refData : ActorRefData = ProtobufSerializer.serializeActorRef(game.ref)
+            case message : MarkerTrait => {
+                println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
+                val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message)
+                ReflectionScalaUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
+                /*val refData : ActorRefData = ProtobufSerializer.serializeActorRef(game.ref)
                 val newMessage = ProtoGameMessage(game.msg, protobuf.ByteString.copyFrom(refData.toByteString.toByteArray))
-                newMessage.toByteArray
+                newMessage.toByteArray*/
             }
-            case success : Success => {
-                success.toByteArray
-            }
+            case _ => Array.empty
         }
     }
 
@@ -34,12 +33,12 @@ class CustomBaseSerialzer(val system: ExtendedActorSystem) extends BaseSerialize
             case Some(clazz) => {
                 println(s">>>>>>>>>>>>>>>>>>> De-Serialize ${clazz.getName} Message <<<<<<<<<<<<<<<<<<<< ")
                 if(clazz.getName == GameMessageManifest){
-                    val message : ProtoGameMessage = ProtoGameMessage.parseFrom(bytes)
+                    val message : GameMessageProto = GameMessageProto.parseFrom(bytes)
                     val refData = ActorRefData.parseFrom(ByteString.copyFrom(message.ref.toByteArray))
                     val ref = ProtobufSerializer.deserializeActorRef(system, refData)
                     GameMessage(message.id, ref)
                 }else if(clazz.getName == SuccessManifest){
-                    Success.parseFrom(bytes)
+                    GameSuccessProto.parseFrom(bytes)
                 } else {
                     throw new ClassNotFoundException("invalid manifest name")
                 }

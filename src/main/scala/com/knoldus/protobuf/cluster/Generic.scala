@@ -42,12 +42,12 @@ object Generic extends App {
     val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message)
     println("Mapped object : "+ anyRef + " ========= " + anyRef.getClass)
 
-    val value = ReflectionScalaUtility.invokeToByteArrayMethod(anyRef.getClass)
+    val value : Array[Byte] = ReflectionScalaUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
     println(" >>>>>>>>>>>>>>>>>>>>>>> " + value.mkString(","))
 
-    val data = ReflectionScalaUtility.invokeParseFromMethod(anyRef.getClass, value);
+    val data : AnyRef = ReflectionScalaUtility.invokeParseFromMethod(anyRef.getClass, value);
     println(" *************************** " + data.getClass)
 
-    val classObject = ReflectionJavaUtility.createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system.asInstanceOf[ExtendedActorSystem])
+    val classObject : AnyRef = ReflectionJavaUtility.createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system.asInstanceOf[ExtendedActorSystem])
     println("Mapped object : "+ classObject + " @@@@@@@@@ " + classObject.getClass)
 }

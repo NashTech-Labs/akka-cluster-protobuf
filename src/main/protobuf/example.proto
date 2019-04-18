@@ -5,11 +5,18 @@ package com.knoldus.protobuf.models;
 import "scalapb/scalapb.proto";
 import "google/protobuf/wrappers.proto";
 
-message ProtoGameMessage {
+
+option (scalapb.options) = {
+  scope: FILE
+  package_name: "com.knoldus.protobuf.cluster"
+  flat_package: true
+};
+
+message GameMessageProto {
   string id = 1;
   bytes ref = 2;
 }
 
-message Success {
+message GameSuccessProto {
   string msg = 1;
 }
