@@ -48,16 +48,11 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .map(field -> {
                     field.setAccessible(true);
-                    try {
-                        Object value = extractValueFromPrimitiveField(field, data);
-                        if (value == null) {
-                            return extractValueFromObjectField(field, data, system);
-                        }
-                        return value;
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        return Option.empty();
+                    Object value = extractValueFromPrimitiveField(field, data);
+                    if (value == null) {
+                        return extractValueFromObjectField(field, data, system);
                     }
+                    return value;
                 })
                 .toArray();
         return protoClassConstructor.newInstance(protoClassData);
@@ -94,7 +89,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         }
     }
 
-    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) throws Exception {
+    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) {
         if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
@@ -109,7 +104,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             return extractValueFromField(obj -> field.get(obj), field, data);
         }
     }
-    
+
     private static ByteString actorRefToByteString(ActorRef actorRef) {
         WireFormats.ActorRefData refData = ProtobufSerializer.serializeActorRef(actorRef);
         return ByteString.copyFrom(refData.toByteString().toByteArray());
@@ -117,7 +112,8 @@ public class ReflectionJavaUtility implements ReflectionUtility {
 
     private static Object byteStringToActorRef(ByteString byteString, ExtendedActorSystem system) {
         try {
-            WireFormats.ActorRefData refData = WireFormats.ActorRefData.parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
+            WireFormats.ActorRefData refData = WireFormats.ActorRefData
+                    .parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
             return ProtobufSerializer.deserializeActorRef(system, refData);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -125,29 +121,30 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         }
     }
 
-    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) throws Exception {
+    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
         Type actualTypeArgument = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+        Object fieldValue = extractValueFromField(obj -> field.get(obj), field, data);
         if (actualTypeArgument == ActorRef.class) {
-            return ((Option) field.get(data)).map(ref -> {
+            return ((Option) fieldValue).map(ref -> {
                 ActorRef actorRef = (ActorRef) ref;
                 return actorRefToByteString(actorRef);
             });
         } else if (actualTypeArgument == ByteString.class) {
-            return ((Option) field.get(data)).map(byteString -> {
+            return ((Option) fieldValue).map(byteString -> {
                 ByteString bytString = (ByteString) byteString;
                 return byteStringToActorRef(bytString, system);
             });
         } else {
-            return extractValueFromField(obj -> field.get(obj), field, data);
+            return fieldValue;
         }
     }
 
     private static <R> R extractValueFromField(CheckedFunction<R, Object> function, Field field, Object data) {
-        try{
+        try {
             return function.apply(data);
-        }catch (Exception ex) {
+        } catch (Exception ex) {
             ex.printStackTrace();
-            String errorMessage = "Class " + data.getClass().getName() + " field "+ field.getName() + "contains Invalid data";
+            String errorMessage = "Class " + data.getClass().getName() + " field " + field.getName() + "contains Invalid data";
             throw new InvalidFieldDataException(errorMessage, ex);
         }
     }
