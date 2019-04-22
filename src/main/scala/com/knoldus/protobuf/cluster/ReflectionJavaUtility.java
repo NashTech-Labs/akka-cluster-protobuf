@@ -6,6 +6,7 @@ import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import scala.Option;
+import scala.Some;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -46,16 +47,18 @@ public class ReflectionJavaUtility implements ReflectionUtility {
 
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
-                .map(field -> {
-                    field.setAccessible(true);
-                    Object value = extractValueFromPrimitiveField(field, data);
-                    if (value == null) {
-                        return extractValueFromObjectField(field, data, system);
-                    }
-                    return value;
-                })
+                .map(field -> extractValueFromField(field, data, system))
                 .toArray();
         return protoClassConstructor.newInstance(protoClassData);
+    }
+
+    private static Object extractValueFromField(Field field, Object data, ExtendedActorSystem system) {
+        field.setAccessible(true);
+        Object value = extractValueFromPrimitiveField(field, data);
+        if (value == null) {
+            return extractValueFromObjectField(field, data, system);
+        }
+        return value;
     }
 
     private static Object extractValueFromPrimitiveField(Field field, Object data) {
@@ -121,22 +124,29 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         }
     }
 
+    private static boolean isPrimitive(String typeName) {
+        return Arrays.asList(
+                Boolean.class.getName(), Byte.class.getName(), Character.class.getName(),
+                Short.class.getName(), Integer.class.getName(), Long.class.getName(), Float.class.getName(), Double.class
+        ).contains(typeName);
+    }
+
     private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
-        Type actualTypeArgument = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-        Object fieldValue = extractValueFromField(obj -> field.get(obj), field, data);
-        if (actualTypeArgument == ActorRef.class) {
-            return ((Option) fieldValue).map(ref -> {
-                ActorRef actorRef = (ActorRef) ref;
+        Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
+
+        return fieldValue.map(optionValue -> {
+            if (isPrimitive(optionValue.getClass().getTypeName())) {
+                return optionValue;
+            } else if (optionValue instanceof ActorRef) {
+                ActorRef actorRef = (ActorRef) optionValue;
                 return actorRefToByteString(actorRef);
-            });
-        } else if (actualTypeArgument == ByteString.class) {
-            return ((Option) fieldValue).map(byteString -> {
-                ByteString bytString = (ByteString) byteString;
+            } else if (optionValue instanceof ByteString) {
+                ByteString bytString = (ByteString) optionValue;
                 return byteStringToActorRef(bytString, system);
-            });
-        } else {
-            return fieldValue;
-        }
+            } else {
+                return optionValue;
+            }
+        });
     }
 
     private static <R> R extractValueFromField(CheckedFunction<R, Object> function, Field field, Object data) {

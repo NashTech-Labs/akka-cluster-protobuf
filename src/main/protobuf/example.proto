@@ -15,8 +15,12 @@ option (scalapb.options) = {
 message GameMessageProto {
   string msg = 1;
   bytes ref = 2;
+  google.protobuf.BoolValue status = 3;
+  google.protobuf.BytesValue optionRef = 4;
 }
 
 message GameSuccessProto {
   string msg = 1;
+  google.protobuf.BoolValue status = 2;
+  google.protobuf.BytesValue optionRef = 3;
 }
