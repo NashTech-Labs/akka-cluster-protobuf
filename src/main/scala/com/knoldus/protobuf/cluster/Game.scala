@@ -3,7 +3,6 @@ package com.knoldus.protobuf.cluster
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
-import com.knoldus.protobuf.models.example.Success
 import com.typesafe.config.ConfigFactory
 
 class Game extends Actor with ActorLogging {
@@ -11,14 +10,14 @@ class Game extends Actor with ActorLogging {
     val pingPong = context.actorOf(FromConfig.props(), name = "PingPongRouter")
 
     override def receive : Receive = {
-        case Success(msg) =>
+        case GameSuccess(msg) =>
             log.info(s"\n ========================= $msg =======================")
     }
 
     override def preStart() : Unit = {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
-        log.info("\n ----------------- About to bang -----------------------")
+        log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
         pingPong ! GameMessage("Ping", self)
     }
 }

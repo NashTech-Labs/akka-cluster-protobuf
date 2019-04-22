@@ -2,11 +2,21 @@ syntax = "proto3";
 
 package com.knoldus.protobuf.models;
 
-message ProtoGameMessage {
-  string id = 1;
+import "scalapb/scalapb.proto";
+import "google/protobuf/wrappers.proto";
+
+
+option (scalapb.options) = {
+  scope: FILE
+  package_name: "com.knoldus.protobuf.cluster"
+  flat_package: true
+};
+
+message GameMessageProto {
+  string msg = 1;
   bytes ref = 2;
 }
 
-message Success {
+message GameSuccessProto {
   string msg = 1;
 }
