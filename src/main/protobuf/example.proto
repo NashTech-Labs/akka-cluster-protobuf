@@ -5,7 +5,6 @@ package com.knoldus.protobuf.models;
 import "scalapb/scalapb.proto";
 import "google/protobuf/wrappers.proto";
 
-
 option (scalapb.options) = {
   scope: FILE
   package_name: "com.knoldus.protobuf.cluster"

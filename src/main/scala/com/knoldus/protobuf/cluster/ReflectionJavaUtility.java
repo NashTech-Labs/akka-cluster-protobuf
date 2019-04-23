@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ReflectionJavaUtility implements ReflectionUtility {
+
     static final List<String> predefineIgnoredFields = Arrays.asList(
             "serialVersionUID",
             "__serializedSizeCachedValue"
@@ -54,7 +55,6 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                             Option option = (Option) extractValueFromField(field, data, system);
                             return option.getOrElse(() -> null);
                         } else {
-
                             return extractValueFromField(field, data, system);
                         }
                     } catch (Exception ex) {
@@ -124,18 +124,9 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
             return resolveScalaEnumeration(value);
         } else if(GeneratedEnum.class.isAssignableFrom(field.getType())) {
-            System.out.println("I am in GeneratedEnum type : " + field.getType().toString().substring(0, field.getType().toString().length() - PROTO_SUFFIX.length()));
-            try {
-                System.out.println(" ????????????????????????????? >>>>>>>>>>>>>>>>> " + field.getName());
-                Class<?> clazz  = findScalaEnumerationClassTypeFromGeneratedEnumClass(field.getType().toString());
-                System.out.println(" ================================================== " + clazz);
-                Object value = extractValueFromField(obj -> field.get(obj), field, data);
-                System.out.println(value.getClass() + " ???????????????????????????????????????????????? Yes Got It >>>>>>>>>> " + value);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-
-            return null;
+            String enumerationClassName = findEnumerationClassName(field);
+            GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
+            return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
         }else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
@@ -159,7 +150,6 @@ public class ReflectionJavaUtility implements ReflectionUtility {
     private static Object resolveScalaEnumeration(Enumeration.Value value) {
 
         Class<?> classType = ReflectionScalaUtility.findEnumerationOuterType(value.getClass(), value);
-        System.out.println(" --------------------------------------------   " + classType);
         return ReflectionScalaUtility.convertEnumerationValueToGeneratedEnumValue(classType, value.id());
     }
 
@@ -201,7 +191,11 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             } else if (optionValue instanceof Enumeration.Value) {
                 Enumeration.Value value = (Enumeration.Value) optionValue;
                 return resolveScalaEnumeration(value);
-            } else {
+            } else if(optionValue instanceof GeneratedEnum){
+                String enumerationClassName = findEnumerationClassName(field);
+                GeneratedEnum value = (GeneratedEnum) optionValue;
+                return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
+            }else {
                 return resolveNestedObjects(optionValue, system);
             }
         });
@@ -217,13 +211,20 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         }
     }
 
-    private static Class<?> findScalaEnumerationClassTypeFromGeneratedEnumClass(String generatedEnumType) {
+    private static String findEnumerationClassName(Field field) {
+        String fieldTypeName = field.getType().getCanonicalName();
+        return  fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
+    }
+
+ /*   private static Enumeration.Value extractValueFromGeneratedEnum(Field field, Object data) {
         try {
-            return ReflectionScalaUtility.method(generatedEnumType.substring(0, generatedEnumType.length() - PROTO_SUFFIX.length()))
-            .getClass();
+            String fieldTypeName = field.getType().getCanonicalName();
+            String enumerationClass = fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
+            GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
+            return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClass, value.index());
         } catch (Exception ex) {
             ex.printStackTrace();
             return null;
         }
-    }
+    }*/
 }

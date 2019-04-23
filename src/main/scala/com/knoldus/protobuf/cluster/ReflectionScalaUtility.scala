@@ -21,7 +21,8 @@ object ReflectionScalaUtility
     def invokeParseFromMethod(clazz : Class[_], bytes : Array[Byte]) : AnyRef = {
         println(" >>>>>>>>>>>>>>>>> In invokeParseFromMethod Method <<<<<<<<<<<<<<<<<<<<")
 
-        val obj = loadProtoCompanionObject(clazz)
+        val protoClass = findProtoClassCanonicalName(clazz)
+        val obj = loadCompanionObject(protoClass)
         val generatedMessageCompanion = obj.instance.asInstanceOf[GeneratedMessageCompanion[_]]
         generatedMessageCompanion.parseFrom(bytes).asInstanceOf[AnyRef]
     }
@@ -29,20 +30,18 @@ object ReflectionScalaUtility
     def convertEnumerationValueToGeneratedEnumValue(clazz : Class[_], id : Int) : AnyRef = {
         println(" >>>>>>>>>>>>>>>>> In convertEnumerationValueToGeneratedEnumValue Method <<<<<<<<<<<<<<<<<<<<")
 
-        val obj = loadProtoCompanionObject(clazz)
+        val protoClass = findProtoClassCanonicalName(clazz)
+        val obj : universe.ModuleMirror = loadCompanionObject(protoClass)
         val generatedEnumCompanion = obj.instance.asInstanceOf[GeneratedEnumCompanion[_]]
         generatedEnumCompanion.fromValue(id).asInstanceOf[AnyRef]
     }
 
-    def convertGeneratedEnumValueToEnumerationValue(clazz : Class[_], name: String): Enumeration#Value = {
+    def convertGeneratedEnumValueToEnumerationValue(enumerationClassName : String, index: Int): Enumeration#Value = {
         println(" >>>>>>>>>>>>>>>>> In convertGeneratedEnumValueToEnumerationValue Method <<<<<<<<<<<<<<<<<<<<")
 
-        val classSymbol : universe.ClassSymbol = runtimeMirror.classSymbol(clazz)
-        val methodSymbol : universe.MethodSymbol = classSymbol.toType.member(TermName("withName")).asMethod
-        val moduleSymbol = classSymbol.companion.asModule
-        val moduleMirror : universe.ModuleMirror = runtimeMirror.reflectModule(moduleSymbol)
-        val instanceMirror = runtimeMirror.reflect(moduleMirror.instance)
-        instanceMirror.reflectMethod(methodSymbol)(name).asInstanceOf[Enumeration#Value]
+        val moduleMirror : universe.ModuleMirror = loadCompanionObject(enumerationClassName)
+        val enumeration = moduleMirror.instance.asInstanceOf[Enumeration]
+        enumeration.apply(index)
     }
 
     def findEnumerationOuterType(clazz : Class[_], enumeration: Enumeration#Value) : Class[_ <: AnyRef] = {
@@ -51,21 +50,14 @@ object ReflectionScalaUtility
         clazz.getMethod("scala$Enumeration$Val$$$outer").invoke(enumeration).getClass
     }
 
-    def method(className: String) = {
-        val classLoader = getClass.getClassLoader.loadClass(className)
-        println("\n //////////////////////////// " +  classLoader.getClasses.mkString(" , "))
-
-        val enumObject = getClass.getClassLoader.loadClass(className + "$").getField("MODULE$").get(null)
-        println(" *********************************************  " + enumObject)
-
-        val module : universe.ModuleSymbol = runtimeMirror.staticModule(className + "$")
-        runtimeMirror.reflectModule(module).instance.asInstanceOf[Enumeration]
-    }
-
-    private def loadProtoCompanionObject(clazz : Class[_]) : universe.ModuleMirror = {
+    private def findProtoClassCanonicalName(clazz : Class[_]) : String = {
         val clazzName = clazz.getName
         val tempClazzName = if(clazzName.endsWith("$")) clazzName.substring(0, clazzName.length - 1) else clazzName
-        val module = runtimeMirror.staticModule(tempClazzName + PROTO_SUFFIX)
+        tempClazzName + PROTO_SUFFIX
+    }
+
+    private def loadCompanionObject(companionName : String) : universe.ModuleMirror = {
+        val module = runtimeMirror.staticModule(companionName)
         runtimeMirror.reflectModule(module)
     }
 }
