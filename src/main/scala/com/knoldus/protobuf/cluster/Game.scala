@@ -10,7 +10,7 @@ class Game extends Actor with ActorLogging {
     val pingPong = context.actorOf(FromConfig.props(), name = "PingPongRouter")
 
     override def receive : Receive = {
-        case GameSuccess(msg) =>
+        case msg : GameSuccess =>
             log.info(s"\n ========================= $msg =======================")
     }
 
@@ -18,7 +18,8 @@ class Game extends Actor with ActorLogging {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
-        pingPong ! GameMessage("Ping", self)
+//        pingPong ! GameMessage("Ping", self, None)
+        pingPong ! GameMessage("Pong", self, Some(true), Some(self), Stage(Level(1)))
     }
 }
 

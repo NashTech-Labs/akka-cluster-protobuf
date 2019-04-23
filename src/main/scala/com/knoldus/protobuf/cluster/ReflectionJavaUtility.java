@@ -9,8 +9,6 @@ import scala.Option;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 
@@ -47,15 +45,31 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .map(field -> {
-                    field.setAccessible(true);
-                    Object value = extractValueFromPrimitiveField(field, data);
-                    if (value == null) {
-                        return extractValueFromObjectField(field, data, system);
+                    try{
+                        if(to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class){
+                            return Option.apply(extractValueFromField(field, data, system));
+                        } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
+                            Option option = (Option) extractValueFromField(field, data, system);
+                            return option.getOrElse(() -> null);
+                        }else{
+                            return extractValueFromField(field, data, system);
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        return null;
                     }
-                    return value;
                 })
                 .toArray();
         return protoClassConstructor.newInstance(protoClassData);
+    }
+
+    private static Object extractValueFromField(Field field, Object data, ExtendedActorSystem system) {
+        field.setAccessible(true);
+        Object value = extractValueFromPrimitiveField(field, data);
+        if (value == null) {
+            return extractValueFromObjectField(field, data, system);
+        }
+        return value;
     }
 
     private static Object extractValueFromPrimitiveField(Field field, Object data) {
@@ -90,7 +104,11 @@ public class ReflectionJavaUtility implements ReflectionUtility {
     }
 
     private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) {
-        if (field.getType() == ActorRef.class) {
+        if (field.getType() == String.class) {
+            System.out.println("I am in String type : " + field.getType());
+            return extractValueFromField(obj -> field.get(obj), field, data);
+        }
+        else if(field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
         } else if (field.getType() == ByteString.class) {
@@ -101,8 +119,24 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             return evaluateScalaOptionType(field, data, system);
         } else {
             System.out.println("I am in Object type : " + field.getType());
-            return extractValueFromField(obj -> field.get(obj), field, data);
+            Object value = extractValueFromField(obj -> field.get(obj), field, data);
+            return resolveNestedObjects(value, system);
         }
+    }
+
+    private static Object resolveNestedObjects(Object value, ExtendedActorSystem system) {
+        try{
+            String valueClassName = value.getClass().getName();
+            if(valueClassName.endsWith("Proto")){
+                return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
+            }else {
+                return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+
     }
 
     private static ByteString actorRefToByteString(ActorRef actorRef) {
@@ -121,22 +155,29 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         }
     }
 
+    private static boolean isPrimitive(String typeName) {
+        return Arrays.asList(
+                Boolean.class.getName(), Byte.class.getName(), Character.class.getName(),
+                Short.class.getName(), Integer.class.getName(), Long.class.getName(), Float.class.getName(), Double.class
+        ).contains(typeName);
+    }
+
     private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
-        Type actualTypeArgument = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-        Object fieldValue = extractValueFromField(obj -> field.get(obj), field, data);
-        if (actualTypeArgument == ActorRef.class) {
-            return ((Option) fieldValue).map(ref -> {
-                ActorRef actorRef = (ActorRef) ref;
+        Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
+
+        return fieldValue.map(optionValue -> {
+            if (isPrimitive(optionValue.getClass().getTypeName())) {
+                return optionValue;
+            } else if (optionValue instanceof ActorRef) {
+                ActorRef actorRef = (ActorRef) optionValue;
                 return actorRefToByteString(actorRef);
-            });
-        } else if (actualTypeArgument == ByteString.class) {
-            return ((Option) fieldValue).map(byteString -> {
-                ByteString bytString = (ByteString) byteString;
+            } else if (optionValue instanceof ByteString) {
+                ByteString bytString = (ByteString) optionValue;
                 return byteStringToActorRef(bytString, system);
-            });
-        } else {
-            return fieldValue;
-        }
+            } else {
+                return resolveNestedObjects(optionValue, system);
+            }
+        });
     }
 
     private static <R> R extractValueFromField(CheckedFunction<R, Object> function, Field field, Object data) {

@@ -12,11 +12,25 @@ option (scalapb.options) = {
   flat_package: true
 };
 
+message LevelProto{
+  int32 number = 1;
+}
+
+message StageProto {
+    LevelProto level = 1;
+}
+
 message GameMessageProto {
   string msg = 1;
   bytes ref = 2;
+  google.protobuf.BoolValue status = 3;
+  google.protobuf.BytesValue optionRef = 4;
+  StageProto stage = 5;
 }
 
 message GameSuccessProto {
   string msg = 1;
+  google.protobuf.BoolValue status = 2;
+  google.protobuf.BytesValue optionRef = 3;
+  StageProto stage = 4;
 }

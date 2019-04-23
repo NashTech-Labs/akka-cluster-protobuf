@@ -4,8 +4,13 @@ import akka.actor.ActorRef
 
 trait ProtobufSerializable
 
-case class GameMessage(msg: String, ref: ActorRef) extends ProtobufSerializable
+case class Level(number : Int) extends ProtobufSerializable
 
-case class GameSuccess(msg : String) extends ProtobufSerializable
+case class Stage(level : Level) extends ProtobufSerializable
 
-object GameProtocol {}
+case class GameMessage(msg : String, ref : ActorRef, status : Option[Boolean], optionRef : Option[ActorRef], stage : Stage) extends ProtobufSerializable
+
+case class GameSuccess(msg : String, status : Option[Boolean], optionRef : Option[ActorRef], stage : Stage) extends ProtobufSerializable
+
+object GameProtocol
+{}
