@@ -5,7 +5,9 @@ import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
+import scala.Enumeration;
 import scala.Option;
+import scalapb.GeneratedEnum;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -45,13 +47,14 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .map(field -> {
-                    try{
-                        if(to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class){
+                    try {
+                        if (to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class) {
                             return Option.apply(extractValueFromField(field, data, system));
                         } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
                             Option option = (Option) extractValueFromField(field, data, system);
                             return option.getOrElse(() -> null);
-                        }else{
+                        } else {
+
                             return extractValueFromField(field, data, system);
                         }
                     } catch (Exception ex) {
@@ -107,8 +110,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         if (field.getType() == String.class) {
             System.out.println("I am in String type : " + field.getType());
             return extractValueFromField(obj -> field.get(obj), field, data);
-        }
-        else if(field.getType() == ActorRef.class) {
+        } else if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
         } else if (field.getType() == ByteString.class) {
@@ -117,26 +119,48 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         } else if (field.getType() == Option.class) {
             System.out.println("I am in Option type : " + field.getType());
             return evaluateScalaOptionType(field, data, system);
-        } else {
-            System.out.println("I am in Object type : " + field.getType());
+        } else if (field.getType() == Enumeration.Value.class) {
+            System.out.println("I am in Enumeration.Value type : " + field.getType());
+            Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
+            return resolveScalaEnumeration(value);
+        } else if(GeneratedEnum.class.isAssignableFrom(field.getType())) {
+            System.out.println("I am in GeneratedEnum type : " + field.getType().toString().substring(0, field.getType().toString().length() - PROTO_SUFFIX.length()));
+            try {
+                System.out.println(" ????????????????????????????? >>>>>>>>>>>>>>>>> " + field.getName());
+                Class<?> clazz  = findScalaEnumerationClassTypeFromGeneratedEnumClass(field.getType().toString());
+                System.out.println(" ================================================== " + clazz);
+                Object value = extractValueFromField(obj -> field.get(obj), field, data);
+                System.out.println(value.getClass() + " ???????????????????????????????????????????????? Yes Got It >>>>>>>>>> " + value);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            return null;
+        }else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
         }
     }
 
     private static Object resolveNestedObjects(Object value, ExtendedActorSystem system) {
-        try{
+        try {
             String valueClassName = value.getClass().getName();
-            if(valueClassName.endsWith("Proto")){
+            if (valueClassName.endsWith("Proto")) {
                 return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
-            }else {
+            } else {
                 return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
             return null;
         }
+    }
 
+    private static Object resolveScalaEnumeration(Enumeration.Value value) {
+
+        Class<?> classType = ReflectionScalaUtility.findEnumerationOuterType(value.getClass(), value);
+        System.out.println(" --------------------------------------------   " + classType);
+        return ReflectionScalaUtility.convertEnumerationValueToGeneratedEnumValue(classType, value.id());
     }
 
     private static ByteString actorRefToByteString(ActorRef actorRef) {
@@ -174,6 +198,9 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             } else if (optionValue instanceof ByteString) {
                 ByteString bytString = (ByteString) optionValue;
                 return byteStringToActorRef(bytString, system);
+            } else if (optionValue instanceof Enumeration.Value) {
+                Enumeration.Value value = (Enumeration.Value) optionValue;
+                return resolveScalaEnumeration(value);
             } else {
                 return resolveNestedObjects(optionValue, system);
             }
@@ -187,6 +214,16 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             ex.printStackTrace();
             String errorMessage = "Class " + data.getClass().getName() + " field " + field.getName() + "contains Invalid data";
             throw new InvalidFieldDataException(errorMessage, ex);
+        }
+    }
+
+    private static Class<?> findScalaEnumerationClassTypeFromGeneratedEnumClass(String generatedEnumType) {
+        try {
+            return ReflectionScalaUtility.method(generatedEnumType.substring(0, generatedEnumType.length() - PROTO_SUFFIX.length()))
+            .getClass();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
         }
     }
 }
