@@ -43,7 +43,9 @@ message GameMessageProto {
   google.protobuf.BoolValue status = 3;
   google.protobuf.BytesValue optionRef = 4;
   StageProto stage = 5;
-  RegionTypeProto regionType = 6;
+  int32 currentLevel = 6;
+  google.protobuf.Int32Value optionCurrentLevel = 7;
+  RegionTypeProto regionType = 8;
 }
 
 message GameSuccessProto {
@@ -51,5 +53,7 @@ message GameSuccessProto {
   google.protobuf.BoolValue status = 2;
   google.protobuf.BytesValue optionRef = 3;
   StageProto stage = 4;
-  RegionTypeProto regionType = 5;
+  int32 currentLevel = 5;
+  google.protobuf.Int32Value optionCurrentLevel = 6;
+  RegionTypeProto regionType = 7;
 }
