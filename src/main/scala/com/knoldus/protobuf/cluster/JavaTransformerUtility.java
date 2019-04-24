@@ -7,18 +7,27 @@ import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import scala.Enumeration;
 import scala.Option;
+import scala.collection.JavaConverters;
+import scala.collection.convert.AsScalaConverters;
+import scala.collection.Seq;
 import scalapb.GeneratedEnum;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 public class JavaTransformerUtility implements ReflectionUtility {
 
     static final List<String> predefineIgnoredFields = Arrays.asList(
             "serialVersionUID",
-            "__serializedSizeCachedValue"
+            "__serializedSizeCachedValue",
+            "__levelsSerializedSizeField"
     );
 
     private JavaTransformerUtility() {
@@ -47,22 +56,8 @@ public class JavaTransformerUtility implements ReflectionUtility {
 
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
-                .map(field -> {
-                    try {
-                        if (to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class) {
-                            return Option.apply(extractValueFromField(field, data, system));
-                        } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
-                            Option option = (Option) extractValueFromField(field, data, system);
-                            return option.getOrElse(() -> null);
-                        } else {
-                            return extractValueFromField(field, data, system);
-                        }
-                    } catch (Exception ex) {
-                        String errorMessage = "Failed to convert " + from.getCanonicalName() + " class " + field.getName() + " filed to "
-                                + to.getCanonicalName() + " class " + field.getName() + " field";
-                        throw new TransformerUtilityException(errorMessage, ex);
-                    }
-                }).toArray();
+                .map(field -> wrapFieldDataToAppropriateType(to, field, data, system))
+                .toArray();
         return protoClassConstructor.newInstance(protoClassData);
     }
 
@@ -73,6 +68,31 @@ public class JavaTransformerUtility implements ReflectionUtility {
             return extractValueFromObjectField(field, data, system);
         }
         return value;
+    }
+
+    private static Object wrapFieldDataToAppropriateType(Class<?> to, Field field, Object data, ExtendedActorSystem system) {
+        try{
+            if (to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class) {
+                return Option.apply(extractValueFromField(field, data, system));
+            } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
+                Option option = (Option) extractValueFromField(field, data, system);
+                return option.get();
+            } else if(to.getDeclaredField(field.getName()).getType() == scala.collection.immutable.List.class){
+                System.out.println(" ???????????????????//////////////////////////// ");
+                scala.collection.Iterator<?> iterator = (scala.collection.Iterator<?>) extractValueFromField(field, data, system);
+                return iterator.toList();
+            }else if(to.getDeclaredField(field.getName()).getType() == scala.collection.immutable.Vector.class) {
+                scala.collection.Iterator<?> iterator = (scala.collection.Iterator<?>) extractValueFromField(field, data, system);
+                return iterator.toVector();
+            }else {
+                return extractValueFromField(field, data, system);
+            }
+        }catch (Exception ex) {
+            ex.printStackTrace();
+            String errorMessage = "Failed to convert <missing-from-class> class " + field.getName() + " filed to "
+                    + to.getCanonicalName() + " class " + field.getName() + " field";
+            throw new TransformerUtilityException(errorMessage, ex);
+        }
     }
 
     private static Object extractValueFromPrimitiveField(Field field, Object data) {
@@ -124,9 +144,14 @@ public class JavaTransformerUtility implements ReflectionUtility {
             Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
             return resolveScalaEnumeration(value);
         } else if (GeneratedEnum.class.isAssignableFrom(field.getType())) {
+            System.out.println("I am in GeneratedEnum type : " + field.getType());
             String enumerationClassName = findEnumerationClassName(field);
             GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
             return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
+        } else if (Seq.class.isAssignableFrom(field.getType())) {
+            System.out.println("I am in scala.collection.Seq type : " + field.getType());
+            Seq<?> value = (Seq<?>) extractValueFromField(obj -> field.get(obj), field, data);
+            return evaluateScalaSeqType(field, value, system);
         } else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
@@ -176,29 +201,40 @@ public class JavaTransformerUtility implements ReflectionUtility {
         ).contains(typeName);
     }
 
-    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
-        Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
+    private static scala.collection.Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system) {
 
-        return fieldValue.map(optionValue -> {
-            if (isPrimitive(optionValue.getClass().getTypeName())) {
-                return optionValue;
-            } else if (optionValue instanceof ActorRef) {
-                ActorRef actorRef = (ActorRef) optionValue;
-                return actorRefToByteString(actorRef);
-            } else if (optionValue instanceof ByteString) {
-                ByteString bytString = (ByteString) optionValue;
-                return byteStringToActorRef(bytString, system);
-            } else if (optionValue instanceof Enumeration.Value) {
-                Enumeration.Value value = (Enumeration.Value) optionValue;
-                return resolveScalaEnumeration(value);
-            } else if (optionValue instanceof GeneratedEnum) {
-                String enumerationClassName = findEnumerationClassName(field);
-                GeneratedEnum value = (GeneratedEnum) optionValue;
-                return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
-            } else {
-                return resolveNestedObjects(optionValue, system);
-            }
-        });
+        Collection<?> collection = JavaConverters.asJavaCollection(seqOfData);
+        Iterator<?> transformedCollection = collection.stream()
+                .map(value -> resolveContainerTypeData(field, value, system))
+                .iterator();
+        return JavaConverters.asScalaIterator(transformedCollection);
+    }
+
+    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
+
+        Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
+        return fieldValue.map(optionValue -> resolveContainerTypeData(field, optionValue, system));
+    }
+
+    private static Object resolveContainerTypeData(Field field, Object containerData, ExtendedActorSystem system) {
+        if (isPrimitive(containerData.getClass().getTypeName())) {
+            return containerData;
+        } else if (containerData instanceof ActorRef) {
+            ActorRef actorRef = (ActorRef) containerData;
+            return actorRefToByteString(actorRef);
+        } else if (containerData instanceof ByteString) {
+            ByteString bytString = (ByteString) containerData;
+            return byteStringToActorRef(bytString, system);
+        } else if (containerData instanceof Enumeration.Value) {
+            Enumeration.Value value = (Enumeration.Value) containerData;
+            return resolveScalaEnumeration(value);
+        } else if (containerData instanceof GeneratedEnum) {
+            String enumerationClassName = findEnumerationClassName(field);
+            GeneratedEnum value = (GeneratedEnum) containerData;
+            return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
+        } else {
+            return resolveNestedObjects(containerData, system);
+        }
     }
 
     private static <R> R extractValueFromField(CheckedFunction<R, Object> function, Field field, Object data) {

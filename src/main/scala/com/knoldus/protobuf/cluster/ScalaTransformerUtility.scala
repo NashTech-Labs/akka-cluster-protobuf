@@ -5,7 +5,7 @@ import scalapb.{GeneratedEnumCompanion, GeneratedMessageCompanion}
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
-
+import scala.collection.Seq
 object ScalaTransformerUtility
 {
     private val runtimeMirror: Mirror = universe.runtimeMirror(getClass.getClassLoader)

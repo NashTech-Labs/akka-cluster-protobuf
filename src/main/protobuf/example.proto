@@ -9,6 +9,7 @@ option (scalapb.options) = {
   scope: FILE
   package_name: "com.knoldus.protobuf.cluster"
   flat_package: true
+  collection_type: "scala.collection.Seq"
 };
 
 message LevelProto{
@@ -44,6 +45,7 @@ message GameMessageProto {
   google.protobuf.BytesValue optionRef = 4;
   StageProto stage = 5;
   RegionTypeProto regionType = 6;
+  repeated int32 levels = 7;
 }
 
 message GameSuccessProto {
@@ -52,4 +54,5 @@ message GameSuccessProto {
   google.protobuf.BytesValue optionRef = 3;
   StageProto stage = 4;
   RegionTypeProto regionType = 5;
+  repeated int32 levels = 6;
 }
