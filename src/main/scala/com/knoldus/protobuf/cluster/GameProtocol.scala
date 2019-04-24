@@ -5,6 +5,12 @@ import com.knoldus.protobuf.cluster.RegionType.RegionType
 
 trait ProtobufSerializable
 
+trait Message extends ProtobufSerializable {
+    def optionRef : Option[ActorRef]
+    def stage : Stage
+    def regionType : RegionType
+}
+
 object RegionType extends Enumeration
 {
     type RegionType = Value
@@ -33,20 +39,19 @@ case class Stage(level : Level) extends ProtobufSerializable
 case class GameMessage(
     msg : String,
     ref : ActorRef,
-    status :
-    Option[Boolean],
-    optionRef : Option[ActorRef],
-    stage : Stage,
-    regionType: RegionType
-) extends ProtobufSerializable
+    status : Option[Boolean],
+    override val optionRef : Option[ActorRef],
+    override val stage : Stage,
+    override val regionType: RegionType
+) extends Message
 
 case class GameSuccess(
     msg : String,
     status : Option[Boolean],
-    optionRef : Option[ActorRef],
-    stage : Stage,
-    regionType: RegionType
-) extends ProtobufSerializable
+    override val optionRef : Option[ActorRef],
+    override val stage : Stage,
+    override val regionType: RegionType
+) extends Message
 
 object GameProtocol
 {}
