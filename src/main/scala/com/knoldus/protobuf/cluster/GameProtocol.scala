@@ -37,7 +37,7 @@ case class GameMessage(
     optionRef : Option[ActorRef],
     stage : Stage,
     currentLevel : Int,
-    optionCurrentLevel : Option[Int],
+    optionCurrentLevel : Option[Level],
     regionType: RegionType
 ) extends ProtobufSerializable
 
@@ -47,7 +47,7 @@ case class GameSuccess(
     optionRef : Option[ActorRef],
     stage : Stage,
     currentLevel : Int,
-    optionCurrentLevel : Option[Int],
+    optionCurrentLevel : Option[Level],
     regionType: RegionType
 ) extends ProtobufSerializable
 
