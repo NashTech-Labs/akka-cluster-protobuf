@@ -6,7 +6,7 @@ import scalapb.{GeneratedEnumCompanion, GeneratedMessageCompanion}
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-object ReflectionScalaUtility
+object ScalaTransformerUtility
 {
     private val runtimeMirror: Mirror = universe.runtimeMirror(getClass.getClassLoader)
 
@@ -51,7 +51,7 @@ object ReflectionScalaUtility
     }
 
     private def findProtoClassCanonicalName(clazz : Class[_]) : String = {
-        val clazzName = clazz.getName
+        val clazzName = clazz.getCanonicalName
         val tempClazzName = if(clazzName.endsWith("$")) clazzName.substring(0, clazzName.length - 1) else clazzName
         tempClazzName + PROTO_SUFFIX
     }

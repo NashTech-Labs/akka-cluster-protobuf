@@ -14,20 +14,20 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
-public class ReflectionJavaUtility implements ReflectionUtility {
+public class JavaTransformerUtility implements ReflectionUtility {
 
     static final List<String> predefineIgnoredFields = Arrays.asList(
             "serialVersionUID",
             "__serializedSizeCachedValue"
     );
 
-    private ReflectionJavaUtility() {
+    private JavaTransformerUtility() {
     }
 
     public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
-            throw new RuntimeException();
+            throw new TransformerUtilityException(protoClass.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
             return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null);
         }
@@ -36,7 +36,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
     public static Object createInstanceOfClassFromProtoClass(String className, Class<?> protobufSerializableClazz, Object protobufSerializableData, ExtendedActorSystem system) throws Exception {
         Class<?> clazz = Class.forName(className.substring(0, (className.length() - PROTO_SUFFIX.length())));
         if (clazz.getConstructors().length != 1) {
-            throw new RuntimeException();
+            throw new TransformerUtilityException(clazz.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
             return createInstanceOfProtoClassFromClass(protobufSerializableClazz, clazz, protobufSerializableData, system);
         }
@@ -58,11 +58,11 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                             return extractValueFromField(field, data, system);
                         }
                     } catch (Exception ex) {
-                        ex.printStackTrace();
-                        return null;
+                        String errorMessage = "Failed to convert " + from.getCanonicalName() + " class " + field.getName() + " filed to "
+                                + to.getCanonicalName() + " class " + field.getName() + " field";
+                        throw new TransformerUtilityException(errorMessage, ex);
                     }
-                })
-                .toArray();
+                }).toArray();
         return protoClassConstructor.newInstance(protoClassData);
     }
 
@@ -123,34 +123,34 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             System.out.println("I am in Enumeration.Value type : " + field.getType());
             Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
             return resolveScalaEnumeration(value);
-        } else if(GeneratedEnum.class.isAssignableFrom(field.getType())) {
+        } else if (GeneratedEnum.class.isAssignableFrom(field.getType())) {
             String enumerationClassName = findEnumerationClassName(field);
             GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
-            return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
-        }else {
+            return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
+        } else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
         }
     }
 
     private static Object resolveNestedObjects(Object value, ExtendedActorSystem system) {
+        String valueClassName = value.getClass().getCanonicalName();
         try {
-            String valueClassName = value.getClass().getName();
-            if (valueClassName.endsWith("Proto")) {
+            if (valueClassName.endsWith(PROTO_SUFFIX)) {
                 return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
             } else {
                 return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
+            String errorMessage = "Unable to resolve nested objects of class" + valueClassName + "class.";
+            throw new TransformerUtilityException(errorMessage, ex);
         }
     }
 
     private static Object resolveScalaEnumeration(Enumeration.Value value) {
 
-        Class<?> classType = ReflectionScalaUtility.findEnumerationOuterType(value.getClass(), value);
-        return ReflectionScalaUtility.convertEnumerationValueToGeneratedEnumValue(classType, value.id());
+        Class<?> classType = ScalaTransformerUtility.findEnumerationOuterType(value.getClass(), value);
+        return ScalaTransformerUtility.convertEnumerationValueToGeneratedEnumValue(classType, value.id());
     }
 
     private static ByteString actorRefToByteString(ActorRef actorRef) {
@@ -164,8 +164,8 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                     .parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
             return ProtobufSerializer.deserializeActorRef(system, refData);
         } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
+            String errorMessage = "Unable to parse ByteString " + byteString + " to ActorRef";
+            throw new TransformerUtilityException(errorMessage, ex);
         }
     }
 
@@ -191,11 +191,11 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             } else if (optionValue instanceof Enumeration.Value) {
                 Enumeration.Value value = (Enumeration.Value) optionValue;
                 return resolveScalaEnumeration(value);
-            } else if(optionValue instanceof GeneratedEnum){
+            } else if (optionValue instanceof GeneratedEnum) {
                 String enumerationClassName = findEnumerationClassName(field);
                 GeneratedEnum value = (GeneratedEnum) optionValue;
-                return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
-            }else {
+                return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
+            } else {
                 return resolveNestedObjects(optionValue, system);
             }
         });
@@ -205,7 +205,6 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         try {
             return function.apply(data);
         } catch (Exception ex) {
-            ex.printStackTrace();
             String errorMessage = "Class " + data.getClass().getName() + " field " + field.getName() + "contains Invalid data";
             throw new InvalidFieldDataException(errorMessage, ex);
         }
@@ -213,18 +212,6 @@ public class ReflectionJavaUtility implements ReflectionUtility {
 
     private static String findEnumerationClassName(Field field) {
         String fieldTypeName = field.getType().getCanonicalName();
-        return  fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
+        return fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
     }
-
- /*   private static Enumeration.Value extractValueFromGeneratedEnum(Field field, Object data) {
-        try {
-            String fieldTypeName = field.getType().getCanonicalName();
-            String enumerationClass = fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
-            GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
-            return ReflectionScalaUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClass, value.index());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
-        }
-    }*/
 }
