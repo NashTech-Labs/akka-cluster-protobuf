@@ -26,6 +26,8 @@ message GameMessageProto {
   google.protobuf.BoolValue status = 3;
   google.protobuf.BytesValue optionRef = 4;
   StageProto stage = 5;
+  int32 currentLevel = 6;
+  google.protobuf.Int32Value optionCurrentLevel = 7;
 }
 
 message GameSuccessProto {
@@ -33,4 +35,6 @@ message GameSuccessProto {
   google.protobuf.BoolValue status = 2;
   google.protobuf.BytesValue optionRef = 3;
   StageProto stage = 4;
+  int32 currentLevel = 5;
+  google.protobuf.Int32Value optionCurrentLevel = 6;
 }
