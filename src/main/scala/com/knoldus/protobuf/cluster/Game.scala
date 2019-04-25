@@ -18,8 +18,8 @@ class Game extends Actor with ActorLogging {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
-        pingPong ! GameMessage("Pong", self, Some(true), Some(self), Stage(Level(1)), 1, Some(1))
-        pingPong ! GameMessage("Pong", self, Some(true), Some(self), Stage(Level(5)), 5, None)
+        pingPong ! GameMessage("Pong", self, Some(true), Some(self), Stage(Level(1)), 1, Some(Level(1)),RegionType.AWS_LONDON)
+        pingPong ! GameMessage("Pong", self, Some(true), Some(self), Stage(Level(5)), 5, None, RegionType.AWS_IRELAND)
     }
 }
 

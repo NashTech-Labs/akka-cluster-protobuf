@@ -5,7 +5,6 @@ package com.knoldus.protobuf.models;
 import "scalapb/scalapb.proto";
 import "google/protobuf/wrappers.proto";
 
-
 option (scalapb.options) = {
   scope: FILE
   package_name: "com.knoldus.protobuf.cluster"
@@ -20,6 +19,24 @@ message StageProto {
     LevelProto level = 1;
 }
 
+enum RegionTypeProto{
+  AWS_NORTH_VIRGINIA = 0;
+  AWS_OHIO = 1;
+  AWS_NORTH_CALIFORNIA = 2;
+  AWS_OREGON = 3;
+  AWS_CANADA = 4;
+  AWS_IRELAND = 5;
+  AWS_FRANFURKT = 6;
+  AWS_LONDON = 7;
+  AWS_SINGAPORE = 8;
+  AWS_SYDNEY = 9;
+  AWS_SEOUL = 10;
+  AWS_TOKYO = 11;
+  AWS_MUMBAI = 12;
+  AWS_SAO_PAOLO = 13;
+  LOCAL_IL_1 = 14;
+}
+
 message GameMessageProto {
   string msg = 1;
   bytes ref = 2;
@@ -28,6 +45,7 @@ message GameMessageProto {
   StageProto stage = 5;
   int32 currentLevel = 6;
   google.protobuf.Int32Value optionCurrentLevel = 7;
+  RegionTypeProto regionType = 8;
 }
 
 message GameSuccessProto {
@@ -37,4 +55,5 @@ message GameSuccessProto {
   StageProto stage = 4;
   int32 currentLevel = 5;
   google.protobuf.Int32Value optionCurrentLevel = 6;
+  RegionTypeProto regionType = 7;
 }

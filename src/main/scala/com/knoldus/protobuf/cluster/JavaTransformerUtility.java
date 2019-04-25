@@ -5,26 +5,29 @@ import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
+import scala.Enumeration;
 import scala.Option;
+import scalapb.GeneratedEnum;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
-public class ReflectionJavaUtility implements ReflectionUtility {
+public class JavaTransformerUtility implements ReflectionUtility {
+
     static final List<String> predefineIgnoredFields = Arrays.asList(
             "serialVersionUID",
             "__serializedSizeCachedValue"
     );
 
-    private ReflectionJavaUtility() {
+    private JavaTransformerUtility() {
     }
 
     public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
-            throw new RuntimeException();
+            throw new TransformerUtilityException(protoClass.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
             return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null);
         }
@@ -33,7 +36,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
     public static Object createInstanceOfClassFromProtoClass(String className, Class<?> protobufSerializableClazz, Object protobufSerializableData, ExtendedActorSystem system) throws Exception {
         Class<?> clazz = Class.forName(className.substring(0, (className.length() - PROTO_SUFFIX.length())));
         if (clazz.getConstructors().length != 1) {
-            throw new RuntimeException();
+            throw new TransformerUtilityException(clazz.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
             return createInstanceOfProtoClassFromClass(protobufSerializableClazz, clazz, protobufSerializableData, system);
         }
@@ -45,21 +48,21 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .map(field -> {
-                    try{
-                        if(to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class){
+                    try {
+                        if (to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class) {
                             return Option.apply(extractValueFromField(field, data, system));
                         } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
                             Option option = (Option) extractValueFromField(field, data, system);
                             return option.getOrElse(() -> null);
-                        }else{
+                        } else {
                             return extractValueFromField(field, data, system);
                         }
                     } catch (Exception ex) {
-                        ex.printStackTrace();
-                        return null;
+                        String errorMessage = "Failed to convert " + from.getCanonicalName() + " class " + field.getName() + " filed to "
+                                + to.getCanonicalName() + " class " + field.getName() + " field";
+                        throw new TransformerUtilityException(errorMessage, ex);
                     }
-                })
-                .toArray();
+                }).toArray();
         return protoClassConstructor.newInstance(protoClassData);
     }
 
@@ -107,8 +110,7 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         if (field.getType() == String.class) {
             System.out.println("I am in String type : " + field.getType());
             return extractValueFromField(obj -> field.get(obj), field, data);
-        }
-        else if(field.getType() == ActorRef.class) {
+        } else if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
         } else if (field.getType() == ByteString.class) {
@@ -117,26 +119,38 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         } else if (field.getType() == Option.class) {
             System.out.println("I am in Option type : " + field.getType());
             return evaluateScalaOptionType(field, data, system);
+        } else if (field.getType() == Enumeration.Value.class) {
+            System.out.println("I am in Enumeration.Value type : " + field.getType());
+            Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
+            return resolveScalaEnumeration(value);
+        } else if (GeneratedEnum.class.isAssignableFrom(field.getType())) {
+            String enumerationClassName = findEnumerationClassName(field);
+            GeneratedEnum value = (GeneratedEnum) extractValueFromField(obj -> field.get(obj), field, data);
+            return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
         } else {
-            System.out.println("I am in Object type : " + field.getType());
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
         }
     }
 
     private static Object resolveNestedObjects(Object value, ExtendedActorSystem system) {
-        try{
-            String valueClassName = value.getClass().getName();
-            if(valueClassName.endsWith("Proto")){
+        String valueClassName = value.getClass().getCanonicalName();
+        try {
+            if (valueClassName.endsWith(PROTO_SUFFIX)) {
                 return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
-            }else {
+            } else {
                 return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
+            String errorMessage = "Unable to resolve nested objects of class" + valueClassName + "class.";
+            throw new TransformerUtilityException(errorMessage, ex);
         }
+    }
 
+    private static Object resolveScalaEnumeration(Enumeration.Value value) {
+
+        Class<?> classType = ScalaTransformerUtility.findEnumerationOuterType(value.getClass(), value);
+        return ScalaTransformerUtility.convertEnumerationValueToGeneratedEnumValue(classType, value.id());
     }
 
     private static ByteString actorRefToByteString(ActorRef actorRef) {
@@ -150,8 +164,8 @@ public class ReflectionJavaUtility implements ReflectionUtility {
                     .parseFrom(akka.protobuf.ByteString.copyFrom(byteString.toByteArray()));
             return ProtobufSerializer.deserializeActorRef(system, refData);
         } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
+            String errorMessage = "Unable to parse ByteString " + byteString + " to ActorRef";
+            throw new TransformerUtilityException(errorMessage, ex);
         }
     }
 
@@ -174,6 +188,13 @@ public class ReflectionJavaUtility implements ReflectionUtility {
             } else if (optionValue instanceof ByteString) {
                 ByteString bytString = (ByteString) optionValue;
                 return byteStringToActorRef(bytString, system);
+            } else if (optionValue instanceof Enumeration.Value) {
+                Enumeration.Value value = (Enumeration.Value) optionValue;
+                return resolveScalaEnumeration(value);
+            } else if (optionValue instanceof GeneratedEnum) {
+                String enumerationClassName = findEnumerationClassName(field);
+                GeneratedEnum value = (GeneratedEnum) optionValue;
+                return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
             } else {
                 return resolveNestedObjects(optionValue, system);
             }
@@ -184,9 +205,13 @@ public class ReflectionJavaUtility implements ReflectionUtility {
         try {
             return function.apply(data);
         } catch (Exception ex) {
-            ex.printStackTrace();
             String errorMessage = "Class " + data.getClass().getName() + " field " + field.getName() + "contains Invalid data";
             throw new InvalidFieldDataException(errorMessage, ex);
         }
+    }
+
+    private static String findEnumerationClassName(Field field) {
+        String fieldTypeName = field.getType().getCanonicalName();
+        return fieldTypeName.substring(0, fieldTypeName.length() - PROTO_SUFFIX.length()) + "$";
     }
 }
