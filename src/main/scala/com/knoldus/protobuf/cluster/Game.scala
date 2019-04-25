@@ -10,7 +10,7 @@ class Game extends Actor with ActorLogging {
     val pingPong = context.actorOf(FromConfig.props(), name = "PingPongRouter")
 
     override def receive : Receive = {
-        case msg : GameSuccess =>
+        case msg : GameReply =>
             log.info(s"\n ========================= $msg =======================")
     }
 
@@ -28,11 +28,11 @@ class Game extends Actor with ActorLogging {
             optionCurrentLevel = Some(Level(1)),
             regionType = RegionType.AWS_LONDON,
             levels = List(1, 2, 3, 4, 5),
-            levelsV = Vector(21, 22, 23, 24, 25)/*,
-            stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62)))*/
+            levelsV = Vector(21, 22, 23, 24, 25),
+            stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62)))
         )
 
-        /*pingPong ! GameMessage(
+        pingPong ! GameMessage(
             msg = "Ding",
             ref = self,
             status = Some(false),
@@ -44,7 +44,21 @@ class Game extends Actor with ActorLogging {
             levels = List(11, 22, 33, 44, 55),
             levelsV = Vector(58, 65, 15, 32, 65),
             stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147)))
-        )*/
+        )
+
+        pingPong ! GameMessage(
+            msg = "Buddy",
+            ref = self,
+            status = Some(false),
+            optionRef = Some(self),
+            stage = Stage(Level(25)),
+            currentLevel = 25,
+            optionCurrentLevel = Some(Level(25)),
+            regionType = RegionType.AWS_SAO_PAOLO,
+            levels = List(34, 45, 67, 89, 23),
+            levelsV = Vector(78, 56, 78, 34, 3258),
+            stages = Seq(Stage(Level(758)), Stage(Level(68)), Stage(Level(275)))
+        )
     }
 }
 

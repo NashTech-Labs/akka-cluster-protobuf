@@ -11,7 +11,6 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
             case message : ProtobufSerializable => {
                 println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
                 val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message)
-                println(" =============================================================== " + anyRef)
                 ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
             }
             case _ => Array.empty
@@ -25,10 +24,7 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
             case Some(clazz) if classOf[ProtobufSerializable].isAssignableFrom(clazz) => {
                 println(s">>>>>>>>>>>>>>>>>>> De-Serialize ${clazz.getName} Message <<<<<<<<<<<<<<<<<<<< ")
                 val data : AnyRef = ScalaTransformerUtility.invokeParseFromMethod(clazz, bytes)
-                println(" ******************************************************************** " + data)
-                val some = createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system)
-                println(" -------------------------------------------------------------------- " + some)
-                some
+                createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system)
             }
             case _ => throw new ClassNotFoundException("Invalid class type for De-Serialize")
         }
