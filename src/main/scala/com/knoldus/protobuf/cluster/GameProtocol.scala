@@ -71,7 +71,9 @@ case class GameMessage(
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
     override val regionType : RegionType,
-    levels : List[Int]
+    levels : List[Int],
+    levelsV : Vector[Int],
+    stages : Seq[Stage]
 ) extends Message
 
 case class GameSuccess(
@@ -80,7 +82,9 @@ case class GameSuccess(
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
     override val regionType : RegionType,
-    levels : List[Int]
+    levels : List[Int],
+    levelsV : Vector[Int],
+    stages : Seq[Stage]
 ) extends Message
 
 object GameProtocol

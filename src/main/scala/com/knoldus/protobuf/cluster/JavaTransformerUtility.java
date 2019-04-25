@@ -8,26 +8,21 @@ import com.google.protobuf.ByteString;
 import scala.Enumeration;
 import scala.Option;
 import scala.collection.JavaConverters;
-import scala.collection.convert.AsScalaConverters;
 import scala.collection.Seq;
 import scalapb.GeneratedEnum;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.toList;
 
 public class JavaTransformerUtility implements ReflectionUtility {
 
     static final List<String> predefineIgnoredFields = Arrays.asList(
-            "serialVersionUID",
-            "__serializedSizeCachedValue",
-            "__levelsSerializedSizeField"
+            "serialVersionUID"
     );
 
     private JavaTransformerUtility() {
@@ -54,45 +49,38 @@ public class JavaTransformerUtility implements ReflectionUtility {
     private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
 
-        Object[] protoClassData = Arrays.stream(from.getDeclaredFields())
+        Object[] fromClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
-                .map(field -> wrapFieldDataToAppropriateType(to, field, data, system))
-                .toArray();
-        return protoClassConstructor.newInstance(protoClassData);
+                .filter(field -> !Modifier.isTransient(field.getModifiers()))
+                .map(field -> {
+                    try {
+                        final Class<?> toFieldType = to.getDeclaredField(field.getName()).getType();
+
+                        if (toFieldType == Option.class && field.getType() != Option.class) {
+                            return Option.apply(extractValueFromField(field, data, toFieldType, system));
+                        } else if (field.getType() == Option.class && toFieldType != Option.class) {
+                            Option option = (Option) extractValueFromField(field, data, toFieldType, system);
+                            return option.get();
+                        } else {
+                            return extractValueFromField(field, data, toFieldType, system);
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        String errorMessage = "Failed to convert " + from.getCanonicalName() + " class " + field.getName() + " filed to "
+                                + to.getCanonicalName() + " class " + field.getName() + " field";
+                        throw new TransformerUtilityException(errorMessage, ex);
+                    }
+                }).toArray();
+        return protoClassConstructor.newInstance(fromClassData);
     }
 
-    private static Object extractValueFromField(Field field, Object data, ExtendedActorSystem system) {
+    private static Object extractValueFromField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system) {
         field.setAccessible(true);
         Object value = extractValueFromPrimitiveField(field, data);
         if (value == null) {
-            return extractValueFromObjectField(field, data, system);
+            return extractValueFromObjectField(field, data, toFieldType, system);
         }
         return value;
-    }
-
-    private static Object wrapFieldDataToAppropriateType(Class<?> to, Field field, Object data, ExtendedActorSystem system) {
-        try{
-            if (to.getDeclaredField(field.getName()).getType() == Option.class && field.getType() != Option.class) {
-                return Option.apply(extractValueFromField(field, data, system));
-            } else if (field.getType() == Option.class && to.getDeclaredField(field.getName()).getType() != Option.class) {
-                Option option = (Option) extractValueFromField(field, data, system);
-                return option.get();
-            } else if(to.getDeclaredField(field.getName()).getType() == scala.collection.immutable.List.class){
-                System.out.println(" ???????????????????//////////////////////////// ");
-                scala.collection.Iterator<?> iterator = (scala.collection.Iterator<?>) extractValueFromField(field, data, system);
-                return iterator.toList();
-            }else if(to.getDeclaredField(field.getName()).getType() == scala.collection.immutable.Vector.class) {
-                scala.collection.Iterator<?> iterator = (scala.collection.Iterator<?>) extractValueFromField(field, data, system);
-                return iterator.toVector();
-            }else {
-                return extractValueFromField(field, data, system);
-            }
-        }catch (Exception ex) {
-            ex.printStackTrace();
-            String errorMessage = "Failed to convert <missing-from-class> class " + field.getName() + " filed to "
-                    + to.getCanonicalName() + " class " + field.getName() + " field";
-            throw new TransformerUtilityException(errorMessage, ex);
-        }
     }
 
     private static Object extractValueFromPrimitiveField(Field field, Object data) {
@@ -120,17 +108,17 @@ public class JavaTransformerUtility implements ReflectionUtility {
         } else if (field.getType() == double.class) {
             System.out.println("I am in double type : " + field.getType());
             return extractValueFromField(obj -> field.getDouble(obj), field, data);
+        } else if (field.getType() == String.class) {
+            System.out.println("I am in String type : " + field.getType());
+            return extractValueFromField(obj -> field.get(obj), field, data);
         } else {
             System.out.println("No matched value in primitive : " + field.getType());
             return null;
         }
     }
 
-    private static Object extractValueFromObjectField(Field field, Object data, ExtendedActorSystem system) {
-        if (field.getType() == String.class) {
-            System.out.println("I am in String type : " + field.getType());
-            return extractValueFromField(obj -> field.get(obj), field, data);
-        } else if (field.getType() == ActorRef.class) {
+    private static Object extractValueFromObjectField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system) {
+        if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
         } else if (field.getType() == ByteString.class) {
@@ -151,7 +139,8 @@ public class JavaTransformerUtility implements ReflectionUtility {
         } else if (Seq.class.isAssignableFrom(field.getType())) {
             System.out.println("I am in scala.collection.Seq type : " + field.getType());
             Seq<?> value = (Seq<?>) extractValueFromField(obj -> field.get(obj), field, data);
-            return evaluateScalaSeqType(field, value, system);
+            Iterator<?> iterator = evaluateScalaSeqType(field, value, system);
+            return wrapCollectionTypeToAppropriateType(iterator, toFieldType);
         } else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
             return resolveNestedObjects(value, system);
@@ -197,17 +186,28 @@ public class JavaTransformerUtility implements ReflectionUtility {
     private static boolean isPrimitive(String typeName) {
         return Arrays.asList(
                 Boolean.class.getName(), Byte.class.getName(), Character.class.getName(),
-                Short.class.getName(), Integer.class.getName(), Long.class.getName(), Float.class.getName(), Double.class
+                Short.class.getName(), Integer.class.getName(), Long.class.getName(), Float.class.getName(),
+                Double.class.getName(), String.class.getName()
         ).contains(typeName);
     }
 
-    private static scala.collection.Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system) {
+    private static Object wrapCollectionTypeToAppropriateType(Iterator<?> transformedCollection, Class<?> toFieldType) {
+        if (toFieldType == scala.collection.immutable.Set.class) {
+            return JavaConverters.asScalaIterator(transformedCollection).toSet();
+        } else if (toFieldType == scala.collection.immutable.Vector.class) {
+            return JavaConverters.asScalaIterator(transformedCollection).toVector();
+        }else {
+            //TODO HS Needs to decide, what will be the else part?
+            return JavaConverters.asScalaIterator(transformedCollection).toList();
+        }
+    }
+
+    private static Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system) {
 
         Collection<?> collection = JavaConverters.asJavaCollection(seqOfData);
-        Iterator<?> transformedCollection = collection.stream()
+        return collection.stream()
                 .map(value -> resolveContainerTypeData(field, value, system))
                 .iterator();
-        return JavaConverters.asScalaIterator(transformedCollection);
     }
 
     private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
