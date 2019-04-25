@@ -32,9 +32,12 @@ abstract class ThrowableHolder extends Throwable(null, null, true, false)
     override def toString = ScalaRunTime._toString(this.asInstanceOf[Product])
 }
 
-trait Message extends ThrowableHolder with ProtobufSerializable {
+trait Message extends ThrowableHolder with ProtobufSerializable
+{
     def optionRef : Option[ActorRef]
+
     def stage : Stage
+
     def regionType : RegionType
 }
 
@@ -69,7 +72,9 @@ case class GameMessage(
     status : Option[Boolean],
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
-    override val regionType: RegionType
+    currentLevel : Int,
+    optionCurrentLevel : Option[Level],
+    override val regionType : RegionType
 ) extends Message
 
 case class GameSuccess(
@@ -77,7 +82,9 @@ case class GameSuccess(
     status : Option[Boolean],
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
-    override val regionType: RegionType
+    currentLevel : Int,
+    optionCurrentLevel : Option[Level],
+    override val regionType : RegionType
 ) extends Message
 
 object GameProtocol
