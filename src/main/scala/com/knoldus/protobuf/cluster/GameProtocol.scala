@@ -3,7 +3,43 @@ package com.knoldus.protobuf.cluster
 import akka.actor.ActorRef
 import com.knoldus.protobuf.cluster.RegionType.RegionType
 
+import scala.runtime.ScalaRunTime
+
 trait ProtobufSerializable
+
+abstract class Command
+{
+    //NOTE:: AD - support for http transport
+    var httpActor : Option[ActorRef] = None
+}
+
+abstract class ThrowableHolder extends Throwable(null, null, true, false)
+{
+    var cause : Option[Throwable] = None
+    var causingCommand : Option[Command] = None
+
+    override def initCause(throwable : Throwable) : ThrowableHolder =
+    {
+        cause = Some(throwable)
+        return this
+    }
+
+    override def getCause = cause.getOrElse(new Throwable("CAUSE_NOT_SET"))
+
+    //NOTE:: AD - this is done since case class doesn't implement toString if it's already
+    //            implemented. in our case it is implemented by Throwable. so this solves the issue
+    //            but adds an assumption that all inheriting classes will be case class
+    override def toString = ScalaRunTime._toString(this.asInstanceOf[Product])
+}
+
+trait Message extends ThrowableHolder with ProtobufSerializable
+{
+    def optionRef : Option[ActorRef]
+
+    def stage : Stage
+
+    def regionType : RegionType
+}
 
 object RegionType extends Enumeration
 {
@@ -34,22 +70,22 @@ case class GameMessage(
     msg : String,
     ref : ActorRef,
     status : Option[Boolean],
-    optionRef : Option[ActorRef],
-    stage : Stage,
+    override val optionRef : Option[ActorRef],
+    override val stage : Stage,
     currentLevel : Int,
     optionCurrentLevel : Option[Level],
-    regionType: RegionType
-) extends ProtobufSerializable
+    override val regionType : RegionType
+) extends Message
 
 case class GameSuccess(
     msg : String,
     status : Option[Boolean],
-    optionRef : Option[ActorRef],
-    stage : Stage,
+    override val optionRef : Option[ActorRef],
+    override val stage : Stage,
     currentLevel : Int,
     optionCurrentLevel : Option[Level],
-    regionType: RegionType
-) extends ProtobufSerializable
+    override val regionType : RegionType
+) extends Message
 
 object GameProtocol
 {}
