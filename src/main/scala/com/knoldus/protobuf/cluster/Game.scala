@@ -18,18 +18,33 @@ class Game extends Actor with ActorLogging {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
-//        pingPong ! GameMessage("Ping", self, None)
         pingPong ! GameMessage(
-            "Pong",
-            self,
-            Some(true),
-            Some(self),
-            Stage(Level(1)),
-            RegionType.AWS_LONDON,
-            List(1, 2, 3, 4, 5),
-            Vector(21, 22, 23, 24, 25),
-            Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62)))
+            msg = "Pong",
+            ref = self,
+            status = Some(true),
+            optionRef = Some(self),
+            stage = Stage(Level(1)),
+            currentLevel = 1,
+            optionCurrentLevel = Some(Level(1)),
+            regionType = RegionType.AWS_LONDON,
+            levels = List(1, 2, 3, 4, 5),
+            levelsV = Vector(21, 22, 23, 24, 25)/*,
+            stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62)))*/
         )
+
+        /*pingPong ! GameMessage(
+            msg = "Ding",
+            ref = self,
+            status = Some(false),
+            optionRef = Some(self),
+            stage = Stage(Level(5)),
+            currentLevel = 5,
+            optionCurrentLevel = Some(Level(5)),
+            regionType = RegionType.AWS_MUMBAI,
+            levels = List(11, 22, 33, 44, 55),
+            levelsV = Vector(58, 65, 15, 32, 65),
+            stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147)))
+        )*/
     }
 }
 

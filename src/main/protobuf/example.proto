@@ -44,10 +44,12 @@ message GameMessageProto {
   google.protobuf.BoolValue status = 3;
   google.protobuf.BytesValue optionRef = 4;
   StageProto stage = 5;
-  RegionTypeProto regionType = 6;
-  repeated int32 levels = 7 [(scalapb.field).collection_type="List"];
-  repeated int32 levelsV = 8 [(scalapb.field).collection_type="Vector"];
-  repeated StageProto stages = 9;
+  int32 currentLevel = 6;
+  google.protobuf.Int32Value optionCurrentLevel = 7;
+  RegionTypeProto regionType = 8;
+  repeated int32 levels = 9 [(scalapb.field).collection_type="List"];
+  repeated int32 levelsV = 10 [(scalapb.field).collection_type="Vector"];
+//  repeated StageProto stages = 11;
 }
 
 message GameSuccessProto {
@@ -55,8 +57,10 @@ message GameSuccessProto {
   google.protobuf.BoolValue status = 2;
   google.protobuf.BytesValue optionRef = 3;
   StageProto stage = 4;
-  RegionTypeProto regionType = 5;
-  repeated int32 levels = 6 [(scalapb.field).collection_type="List"];
-  repeated int32 levelsV = 7 [(scalapb.field).collection_type="Vector"];
-  repeated StageProto stages = 8;
+  int32 currentLevel = 5;
+  google.protobuf.Int32Value optionCurrentLevel = 6;
+  RegionTypeProto regionType = 7;
+  repeated int32 levels = 8 [(scalapb.field).collection_type="List"];
+  repeated int32 levelsV = 9 [(scalapb.field).collection_type="Vector"];
+//  repeated StageProto stages = 10;
 }

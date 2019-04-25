@@ -34,9 +34,7 @@ abstract class ThrowableHolder extends Throwable(null, null, true, false)
 
 trait Message extends ThrowableHolder with ProtobufSerializable {
     def optionRef : Option[ActorRef]
-
     def stage : Stage
-
     def regionType : RegionType
 }
 
@@ -70,10 +68,12 @@ case class GameMessage(
     status : Option[Boolean],
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
+    currentLevel : Int,
+    optionCurrentLevel : Option[Level],
     override val regionType : RegionType,
     levels : List[Int],
-    levelsV : Vector[Int],
-    stages : Seq[Stage]
+    levelsV : Vector[Int]/*,
+    stages : Seq[Stage]*/
 ) extends Message
 
 case class GameSuccess(
@@ -81,10 +81,12 @@ case class GameSuccess(
     status : Option[Boolean],
     override val optionRef : Option[ActorRef],
     override val stage : Stage,
+    currentLevel : Int,
+    optionCurrentLevel : Option[Level],
     override val regionType : RegionType,
     levels : List[Int],
-    levelsV : Vector[Int],
-    stages : Seq[Stage]
+    levelsV : Vector[Int]/*,
+    stages : Seq[Stage]*/
 ) extends Message
 
 object GameProtocol

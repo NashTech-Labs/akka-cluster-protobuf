@@ -6,9 +6,9 @@ import com.typesafe.config.ConfigFactory
 class PingPong extends Actor with ActorLogging {
 
     override def receive : Receive = {
-        case GameMessage(msg, ref, status, optionRef, stage, regionType, levels, levelsV, stages) =>
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV/*, stages*/) =>
             log.info(s"\n ========================= $msg =======================")
-            ref ! GameSuccess("Wo hoo, I got the success", status, optionRef, stage, regionType, levels, levelsV, stages)
+            ref ! GameSuccess("Wo hoo, I got the success", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV/*, stages*/)
         case msg =>
             log.info("\n ------------------------- {} ---------------------------", msg)
     }
