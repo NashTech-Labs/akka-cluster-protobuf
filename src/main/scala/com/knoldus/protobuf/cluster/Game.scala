@@ -1,5 +1,6 @@
 package com.knoldus.protobuf.cluster
 
+import akka.actor.Status.{Failure, Status, Success}
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
@@ -11,13 +12,20 @@ class Game extends Actor with ActorLogging {
 
     override def receive : Receive = {
         case msg : GameReply =>
-            log.info(s"\n ========================= $msg =======================")
+            log.info(s"\n (¬‿¬) ========================= $msg =======================")
+        case msg : Status =>
+            log.info(s"\n (¬‿¬) ========================= $msg =======================")
+        case msg =>
+            log.info(
+                """
+                  |¯\(°_o)/¯ _________ {} _________ ¯\(°_o)/¯ """.stripMargin, msg)
     }
 
     override def preStart() : Unit = {
         log.info("\n >>>>>>>>>>>>> Bang from the GameLauncher after 10 Seconds <<<<<<<<<<<<<<<<<" + pingPong.path)
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
+
         pingPong ! GameMessage(
             msg = "Pong",
             ref = self,
@@ -29,7 +37,8 @@ class Game extends Actor with ActorLogging {
             regionType = RegionType.AWS_LONDON,
             levels = List(1, 2, 3, 4, 5),
             levelsV = Vector(21, 22, 23, 24, 25),
-            stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62)))
+            stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
+            RewardsPoint(self)
         )
 
         pingPong ! GameMessage(
@@ -43,7 +52,8 @@ class Game extends Actor with ActorLogging {
             regionType = RegionType.AWS_MUMBAI,
             levels = List(11, 22, 33, 44, 55),
             levelsV = Vector(58, 65, 15, 32, 65),
-            stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147)))
+            stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147))),
+            RewardsPoint(self)
         )
 
         pingPong ! GameMessage(
@@ -57,8 +67,20 @@ class Game extends Actor with ActorLogging {
             regionType = RegionType.AWS_SAO_PAOLO,
             levels = List(34, 45, 67, 89, 23),
             levelsV = Vector(78, 56, 78, 34, 3258),
-            stages = Seq(Stage(Level(758)), Stage(Level(68)), Stage(Level(275)))
+            stages = Seq(Stage(Level(758)), Stage(Level(68)), Stage(Level(275))),
+            RewardsPoint(self)
         )
+
+
+                pingPong ! Success("Cooool")                // Done
+                pingPong ! Success(Level(61))               // Done
+                pingPong ! "Sr. H.Singh"                    // Done
+                pingPong ! 12                               // Done
+                pingPong ! Some(" Knoldus ")                // Done
+                pingPong ! Some(Stage(Level(61)))           // Done
+                pingPong ! None                             // Done
+//                pingPong ! Failure(new RuntimeException)    // Needs to turn on allow-java-serialization for Exception
+//                pingPong ! List(1, 2, 3, 4, 5, 6)         // Error
     }
 }
 

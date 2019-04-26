@@ -1,22 +1,36 @@
 package com.knoldus.protobuf.cluster
 
+import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 
 class PingPong extends Actor with ActorLogging {
 
     override def receive : Receive = {
-        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) if msg.toLowerCase == "ping" =>
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards) if msg.toLowerCase == "ping" =>
             log.info(s"\n ========================= $msg =======================")
-            ref ! GameReply("Pong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
-        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) if msg.toLowerCase == "ding" =>
+            ref ! GameReply("Pong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards)
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards) if msg.toLowerCase == "ding" =>
             log.info(s"\n ========================= $msg =======================")
-            ref ! GameReply("Dong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
-        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) =>
+            ref ! GameReply("Dong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards)
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards) =>
             log.info(s"\n ========================= $msg =======================")
-            ref ! GameReply("""¯\_(ツ)_/¯""", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
+            ref ! GameReply("""¯\_(ツ)_/¯""", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages, rewards)
+        case status @ Success(msg) =>
+            log.info(s"\n ========================= $msg =======================")
+            sender() ! status
+        case msg @ Some =>
+            log.info(s"\n ========================= $msg =======================")
+            sender() ! msg
+        case None =>
+            log.info(s"\n ========================= None =======================")
+            sender() ! None
         case msg =>
-            log.info("""\n ( ͡° ʖ̯ ͡°) _________ (ง’̀-‘́)ง _________ (▀̿Ĺ̯▀̿ ̿)""", msg)
+            log.info(
+                """
+                  |( ͡° ʖ̯ ͡°) _________ {} _________ (▀̿Ĺ̯▀̿ ̿) """.stripMargin, msg)
+
+            sender() ! msg
     }
 }
 
