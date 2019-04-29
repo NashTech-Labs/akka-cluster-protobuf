@@ -12,6 +12,10 @@ option (scalapb.options) = {
   collection_type: "scala.collection.Seq"
 };
 
+message RewardsPointProto{
+  bytes ref = 1;
+}
+
 message LevelProto{
   int32 number = 1;
 }
@@ -38,6 +42,10 @@ enum RegionTypeProto{
   LOCAL_IL_1 = 14;
 }
 
+message SuccessProto {
+
+}
+
 message GameMessageProto {
   string msg = 1;
   bytes ref = 2;
@@ -50,6 +58,7 @@ message GameMessageProto {
   repeated int32 levels = 9 [(scalapb.field).collection_type="List"];
   repeated int32 levelsV = 10 [(scalapb.field).collection_type="Vector"];
   repeated StageProto stages = 11;
+  RewardsPointProto rewards = 12;
 }
 
 message GameReplyProto {
@@ -63,4 +72,5 @@ message GameReplyProto {
   repeated int32 levels = 8 [(scalapb.field).collection_type="List"];
   repeated int32 levelsV = 9 [(scalapb.field).collection_type="Vector"];
   repeated StageProto stages = 10;
+  RewardsPointProto rewards = 11;
 }
