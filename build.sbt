@@ -2,7 +2,8 @@ name := "akkacluster-with-protobuf"
 
 version := "0.1"
 
-scalaVersion := "2.12.8"
+val currentScalaVersion = "2.12.2"
+scalaVersion := currentScalaVersion
 
 val akkaVersion = "2.5.21"
 libraryDependencies ++= Seq(
@@ -11,7 +12,7 @@ libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-    "org.scala-lang" % "scala-reflect" % "2.12.8"
+    "org.scala-lang" % "scala-reflect" % currentScalaVersion
 )
 
 PB.protocVersion := "-v351"

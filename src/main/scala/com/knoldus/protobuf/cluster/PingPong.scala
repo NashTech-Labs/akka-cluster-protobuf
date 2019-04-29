@@ -6,11 +6,17 @@ import com.typesafe.config.ConfigFactory
 class PingPong extends Actor with ActorLogging {
 
     override def receive : Receive = {
-        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType) =>
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) if msg.toLowerCase == "ping" =>
             log.info(s"\n ========================= $msg =======================")
-            ref ! GameSuccess("Wo hoo, I got the success", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType)
+            ref ! GameReply("Pong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) if msg.toLowerCase == "ding" =>
+            log.info(s"\n ========================= $msg =======================")
+            ref ! GameReply("Dong", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
+        case GameMessage(msg, ref, status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages) =>
+            log.info(s"\n ========================= $msg =======================")
+            ref ! GameReply("""¯\_(ツ)_/¯""", status, optionRef, stage, currentLevel, optionCurrentLevel, regionType, levels, levelsV, stages)
         case msg =>
-            log.info("\n ------------------------- {} ---------------------------", msg)
+            log.info("""\n ( ͡° ʖ̯ ͡°) _________ (ง’̀-‘́)ง _________ (▀̿Ĺ̯▀̿ ̿)""", msg)
     }
 }
 
