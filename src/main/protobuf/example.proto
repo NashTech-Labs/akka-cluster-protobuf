@@ -2,14 +2,12 @@ syntax = "proto3";
 
 import "scalapb/scalapb.proto";
 import "google/protobuf/wrappers.proto";
-import "reporty-exceptions.proto";
 
 option (scalapb.options) = {
   scope: FILE
   package_name: "com.knoldus.protobuf.cluster"
   flat_package: true
   collection_type: "scala.collection.Seq"
-  import: "com.knoldus.protobuf.cluster.exception.ExceptionMarkerTrait"
 };
 
 message RewardsPointProto{
@@ -47,8 +45,6 @@ message ThrowableProto {
 }
 
 message GameMessageProto {
-  option (scalapb.message).extends = "com.knoldus.protobuf.cluster.exception.ExceptionMarkerTrait";
-
   string msg = 1;
   bytes ref = 2;
   google.protobuf.BoolValue status = 3;
@@ -65,8 +61,6 @@ message GameMessageProto {
 }
 
 message GameReplyProto {
-  option (scalapb.message).extends = "com.knoldus.protobuf.cluster.exception.ExceptionMarkerTrait";
-
   string msg = 1;
   google.protobuf.BoolValue status = 2;
   google.protobuf.BytesValue optionRef = 3;
@@ -78,5 +72,4 @@ message GameReplyProto {
   repeated int32 levelsV = 9 [(scalapb.field).collection_type="Vector"];
   repeated StageProto stages = 10;
   RewardsPointProto rewards = 11;
-  ThrowableProto cause = 12;
 }

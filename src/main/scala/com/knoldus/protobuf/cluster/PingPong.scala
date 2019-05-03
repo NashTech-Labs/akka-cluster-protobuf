@@ -1,6 +1,7 @@
 package com.knoldus.protobuf.cluster
 
 import akka.actor.Status.Success
+import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 
@@ -19,6 +20,8 @@ class PingPong extends Actor with ActorLogging {
         case status @ Success(msg) =>
             log.info(s"\n ========================= $msg =======================")
             sender() ! status
+        case status @ Failure(msg) =>
+            log.error(msg, "This is my serialized exception ..............................................")
         case msg @ Some =>
             log.info(s"\n ========================= $msg =======================")
             sender() ! msg

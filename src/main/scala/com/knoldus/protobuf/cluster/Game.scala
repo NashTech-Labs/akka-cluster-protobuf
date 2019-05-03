@@ -27,7 +27,7 @@ class Game extends Actor with ActorLogging {
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
 
-        pingPong ! GameMessage(
+        pingPong ! Failure(GameMessage(
             msg = "Pong",
             ref = self,
             status = Some(true),
@@ -40,7 +40,7 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(21, 22, 23, 24, 25),
             stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
             RewardsPoint(self)
-        ).initCause(ModelManagerException())
+        ).initCause(ModelManagerException()))
 
         /*pingPong ! GameMessage(
             msg = "Ding",
@@ -55,9 +55,9 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(58, 65, 15, 32, 65),
             stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147))),
             RewardsPoint(self)
-        )
+        )*/
 
-        pingPong ! GameMessage(
+       /* pingPong ! GameMessage(
             msg = "Buddy",
             ref = self,
             status = Some(false),

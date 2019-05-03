@@ -7,7 +7,6 @@ import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
 import com.knoldus.protobuf.cluster.exception.APIServerException;
 import scala.Enumeration;
-import scala.None;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -20,11 +19,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class JavaTransformerUtility implements ReflectionUtility {
 
     static final List<String> predefineIgnoredFields = Arrays.asList(
-            "serialVersionUID"
+            "serialVersionUID", "cause"
     );
 
     private JavaTransformerUtility() {
@@ -35,7 +35,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         if (protoClass.getConstructors().length != 1) {
             throw new TransformerUtilityException(protoClass.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
-            return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null, null);
+            return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null, cause);
         }
     }
 
@@ -51,8 +51,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
     private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system, byte[] cause) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
 
-        Object[] fromClassData = Arrays.stream(from.getDeclaredFields())
-                .peek(field -> System.out.println(" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>............................. " + field.getName()))
+        List<Object> fromClassData = Arrays.stream(from.getDeclaredFields())
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .filter(field -> !Modifier.isTransient(field.getModifiers()))
                 .map(field -> {
@@ -60,12 +59,12 @@ public class JavaTransformerUtility implements ReflectionUtility {
                         final Class<?> toFieldType = to.getDeclaredField(field.getName()).getType();
 
                         if (toFieldType == Option.class && field.getType() != Option.class) {
-                            return Option.apply(extractValueFromField(field, data, toFieldType, system));
+                            return Option.apply(extractValueFromField(field, data, toFieldType, system, cause));
                         } else if (field.getType() == Option.class && toFieldType != Option.class) {
-                            Option option = (Option) extractValueFromField(field, data, toFieldType, system);
+                            Option option = (Option) extractValueFromField(field, data, toFieldType, system, cause);
                             return option.get();
                         } else {
-                            return extractValueFromField(field, data, toFieldType, system);
+                            return extractValueFromField(field, data, toFieldType, system, cause);
                         }
                     } catch (Exception ex) {
                         ex.printStackTrace();
@@ -73,18 +72,47 @@ public class JavaTransformerUtility implements ReflectionUtility {
                                 + to.getCanonicalName() + " class " + field.getName() + " field";
                         throw new TransformerUtilityException(errorMessage, ex);
                     }
-                }).toArray();
-        if(from.getDeclaredFields().length == fromClassData.length) {
-            fromClassData[fromClassData.length] = cause;
+                }).collect(Collectors.toList());
+
+        if (from.getName().endsWith(PROTO_SUFFIX)) {
+            try {
+                Field field = from.getDeclaredField("cause");
+                field.setAccessible(true);
+                Option scalaOptionType = evaluateScalaOptionType(field, data, system, cause);
+                if (scalaOptionType.isDefined()) {
+                    Throwable throwable = (Throwable) scalaOptionType.get();
+                    ThrowableHolder holder = (ThrowableHolder) protoClassConstructor.newInstance(fromClassData.toArray());
+                    holder.initCause(throwable);
+                    return holder;
+                }
+            } catch (Exception ex) {
+//                ex.printStackTrace();
+                System.out.println("cause field no exists " + from.getName());
+            }
         }
-        return protoClassConstructor.newInstance(fromClassData);
+
+        if (!from.getName().endsWith(PROTO_SUFFIX)) {
+            try {
+                to.getDeclaredField("cause");
+                if(cause != null){
+                    fromClassData.add(Option.apply(new ThrowableProto(ByteString.copyFrom(cause))));
+                }else {
+                    fromClassData.add(Option.apply(null));
+                }
+            } catch (Exception ex) {
+//                ex.printStackTrace();
+                System.out.println("cause field no exists " + from.getName());
+            }
+        }
+
+        return protoClassConstructor.newInstance(fromClassData.toArray());
     }
 
-    private static Object extractValueFromField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system) {
+    private static Object extractValueFromField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, byte[] cause) {
         field.setAccessible(true);
         Object value = extractValueFromPrimitiveField(field, data);
         if (value == null) {
-            return extractValueFromObjectField(field, data, toFieldType, system);
+            return extractValueFromObjectField(field, data, toFieldType, system, cause);
         }
         return value;
     }
@@ -123,7 +151,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
         }
     }
 
-    private static Object extractValueFromObjectField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system) {
+    private static Object extractValueFromObjectField(Field field, Object data, Class<?> toFieldType, ExtendedActorSystem system, byte[] cause) {
         if (field.getType() == ActorRef.class) {
             System.out.println("I am in ActorRef type : " + field.getType());
             return extractValueFromField(obj -> actorRefToByteString((ActorRef) field.get(obj)), field, data);
@@ -132,7 +160,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
             return extractValueFromField(obj -> byteStringToActorRef((ByteString) field.get(obj), system), field, data);
         } else if (field.getType() == Option.class) {
             System.out.println("I am in Option type : " + field.getType());
-            return evaluateScalaOptionType(field, data, system);
+            return evaluateScalaOptionType(field, data, system, cause);
         } else if (field.getType() == Enumeration.Value.class) {
             System.out.println("I am in Enumeration.Value type : " + field.getType());
             Enumeration.Value value = (Enumeration.Value) extractValueFromField(obj -> field.get(obj), field, data);
@@ -145,21 +173,21 @@ public class JavaTransformerUtility implements ReflectionUtility {
         } else if (Seq.class.isAssignableFrom(field.getType())) {
             System.out.println("I am in scala.collection.Seq type : " + field.getType());
             Seq<?> value = (Seq<?>) extractValueFromField(obj -> field.get(obj), field, data);
-            Iterator<?> iterator = evaluateScalaSeqType(field, value, system);
+            Iterator<?> iterator = evaluateScalaSeqType(field, value, system, cause);
             return wrapCollectionTypeToAppropriateType(iterator, toFieldType);
         } else {
             Object value = extractValueFromField(obj -> field.get(obj), field, data);
-            return resolveNestedObjects(value, system);
+            return resolveNestedObjects(value, system, cause);
         }
     }
 
-    private static Object resolveNestedObjects(Object value, ExtendedActorSystem system) {
+    private static Object resolveNestedObjects(Object value, ExtendedActorSystem system, byte[] cause) {
         String valueClassName = value.getClass().getCanonicalName();
         try {
             if (valueClassName.endsWith(PROTO_SUFFIX)) {
                 return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
             } else {
-                return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value, null);
+                return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value, cause);
             }
         } catch (Exception ex) {
             String errorMessage = "Unable to resolve nested objects of class" + valueClassName + "class.";
@@ -202,35 +230,37 @@ public class JavaTransformerUtility implements ReflectionUtility {
             return JavaConverters.asScalaIterator(transformedCollection).toSet();
         } else if (toFieldType == scala.collection.immutable.Vector.class) {
             return JavaConverters.asScalaIterator(transformedCollection).toVector();
-        }else {
+        } else {
             //TODO HS Needs to decide, what will be the else part?
             return JavaConverters.asScalaIterator(transformedCollection).toList();
         }
     }
 
-    private static Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system) {
+    private static Iterator<?> evaluateScalaSeqType(Field field, Seq<?> seqOfData, ExtendedActorSystem system, byte[] cause) {
 
         Collection<?> collection = JavaConverters.asJavaCollection(seqOfData);
         return collection.stream()
-                .map(value -> resolveContainerTypeData(field, value, system))
+                .map(value -> resolveContainerTypeData(field, value, system, cause))
                 .iterator();
     }
 
-    private static Object evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system) {
+    private static Option evaluateScalaOptionType(Field field, Object data, ExtendedActorSystem system, byte[] cause) {
 
         Option fieldValue = (Option) extractValueFromField(obj -> field.get(obj), field, data);
-        return fieldValue.map(optionValue -> resolveContainerTypeData(field, optionValue, system));
+        return fieldValue.map(optionValue -> resolveContainerTypeData(field, optionValue, system, cause));
     }
 
-    private static Object resolveContainerTypeData(Field field, Object containerData, ExtendedActorSystem system) {
+    private static Object resolveContainerTypeData(Field field, Object containerData, ExtendedActorSystem system, byte[] cause) {
         if (isPrimitive(containerData.getClass().getTypeName())) {
             return containerData;
         } else if (containerData instanceof ActorRef) {
             ActorRef actorRef = (ActorRef) containerData;
             return actorRefToByteString(actorRef);
-        } else if (containerData instanceof ByteString && field.getName().equalsIgnoreCase("cause")){
-            return null;
-        }else if (containerData instanceof ByteString ) {
+        } else if (containerData instanceof ThrowableProto) {
+            ThrowableProto throwableProto = (ThrowableProto) containerData;
+            ByteString bytString = throwableProto.exception();
+            return ObjectSerializer.deserializeThrowableUsingJavaSerializable(bytString.toByteArray());
+        } else if (containerData instanceof ByteString) {
             ByteString bytString = (ByteString) containerData;
             return byteStringToActorRef(bytString, system);
         } else if (containerData instanceof Enumeration.Value) {
@@ -240,10 +270,10 @@ public class JavaTransformerUtility implements ReflectionUtility {
             String enumerationClassName = findEnumerationClassName(field);
             GeneratedEnum value = (GeneratedEnum) containerData;
             return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
-        } else if(containerData instanceof APIServerException){
+        } else if (containerData instanceof APIServerException) {
             return null;
-        }else {
-            return resolveNestedObjects(containerData, system);
+        } else {
+            return resolveNestedObjects(containerData, system, cause);
         }
     }
 
