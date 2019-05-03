@@ -4,6 +4,7 @@ import akka.actor.Status.{Failure, Status, Success}
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
+import com.knoldus.protobuf.cluster.exception.ModelManagerException
 import com.typesafe.config.ConfigFactory
 
 class Game extends Actor with ActorLogging {
@@ -26,7 +27,7 @@ class Game extends Actor with ActorLogging {
         Thread.sleep(10000)
         log.info("\n ----------------- About createInstanceOfProtoClassFromClass bang -----------------------")
 
-        pingPong ! GameMessage(
+        pingPong ! Failure(GameMessage(
             msg = "Pong",
             ref = self,
             status = Some(true),
@@ -39,9 +40,9 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(21, 22, 23, 24, 25),
             stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
             RewardsPoint(self)
-        )
+        ).initCause(ModelManagerException()))
 
-        pingPong ! GameMessage(
+        /*pingPong ! GameMessage(
             msg = "Ding",
             ref = self,
             status = Some(false),
@@ -54,9 +55,9 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(58, 65, 15, 32, 65),
             stages = Seq(Stage(Level(258)), Stage(Level(369)), Stage(Level(147))),
             RewardsPoint(self)
-        )
+        )*/
 
-        pingPong ! GameMessage(
+       /* pingPong ! GameMessage(
             msg = "Buddy",
             ref = self,
             status = Some(false),
@@ -78,7 +79,7 @@ class Game extends Actor with ActorLogging {
                 pingPong ! 12                               // Done
                 pingPong ! Some(" Knoldus ")                // Done
                 pingPong ! Some(Stage(Level(61)))           // Done
-                pingPong ! None                             // Done
+                pingPong ! None                             // Done*/
 //                pingPong ! Failure(new RuntimeException)    // Needs to turn on allow-java-serialization for Exception
 //                pingPong ! List(1, 2, 3, 4, 5, 6)         // Error
     }

@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-package com.knoldus.protobuf.models;
-
 import "scalapb/scalapb.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -42,8 +40,8 @@ enum RegionTypeProto{
   LOCAL_IL_1 = 14;
 }
 
-message SuccessProto {
-
+message ThrowableProto {
+  bytes exception = 1;
 }
 
 message GameMessageProto {
@@ -59,6 +57,7 @@ message GameMessageProto {
   repeated int32 levelsV = 10 [(scalapb.field).collection_type="Vector"];
   repeated StageProto stages = 11;
   RewardsPointProto rewards = 12;
+  ThrowableProto cause = 13;
 }
 
 message GameReplyProto {
