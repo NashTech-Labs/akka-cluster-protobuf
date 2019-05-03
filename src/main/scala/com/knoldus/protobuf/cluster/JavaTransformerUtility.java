@@ -5,7 +5,9 @@ import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
+import com.knoldus.protobuf.cluster.exception.APIServerException;
 import scala.Enumeration;
+import scala.None;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -28,12 +30,12 @@ public class JavaTransformerUtility implements ReflectionUtility {
     private JavaTransformerUtility() {
     }
 
-    public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData) throws Exception {
+    public static Object createInstanceOfProtoClassFromClass(String className, Class<?> clazzType, Object clazzTypeData, byte[] cause) throws Exception {
         Class<?> protoClass = Class.forName(className + PROTO_SUFFIX);
         if (protoClass.getConstructors().length != 1) {
             throw new TransformerUtilityException(protoClass.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
-            return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null);
+            return createInstanceOfProtoClassFromClass(clazzType, protoClass, clazzTypeData, null, null);
         }
     }
 
@@ -42,14 +44,15 @@ public class JavaTransformerUtility implements ReflectionUtility {
         if (clazz.getConstructors().length != 1) {
             throw new TransformerUtilityException(clazz.getCanonicalName() + " class doesn't contains only one constructor", null);
         } else {
-            return createInstanceOfProtoClassFromClass(protobufSerializableClazz, clazz, protobufSerializableData, system);
+            return createInstanceOfProtoClassFromClass(protobufSerializableClazz, clazz, protobufSerializableData, system, null);
         }
     }
 
-    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system) throws Exception {
+    private static Object createInstanceOfProtoClassFromClass(Class<?> from, Class<?> to, Object data, ExtendedActorSystem system, byte[] cause) throws Exception {
         Constructor<?> protoClassConstructor = to.getConstructors()[0];
 
         Object[] fromClassData = Arrays.stream(from.getDeclaredFields())
+                .peek(field -> System.out.println(" >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>............................. " + field.getName()))
                 .filter(field -> !predefineIgnoredFields.contains(field.getName()))
                 .filter(field -> !Modifier.isTransient(field.getModifiers()))
                 .map(field -> {
@@ -71,6 +74,9 @@ public class JavaTransformerUtility implements ReflectionUtility {
                         throw new TransformerUtilityException(errorMessage, ex);
                     }
                 }).toArray();
+        if(from.getDeclaredFields().length == fromClassData.length) {
+            fromClassData[fromClassData.length] = cause;
+        }
         return protoClassConstructor.newInstance(fromClassData);
     }
 
@@ -153,7 +159,7 @@ public class JavaTransformerUtility implements ReflectionUtility {
             if (valueClassName.endsWith(PROTO_SUFFIX)) {
                 return createInstanceOfClassFromProtoClass(valueClassName, value.getClass(), value, system);
             } else {
-                return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value);
+                return createInstanceOfProtoClassFromClass(valueClassName, value.getClass(), value, null);
             }
         } catch (Exception ex) {
             String errorMessage = "Unable to resolve nested objects of class" + valueClassName + "class.";
@@ -222,7 +228,9 @@ public class JavaTransformerUtility implements ReflectionUtility {
         } else if (containerData instanceof ActorRef) {
             ActorRef actorRef = (ActorRef) containerData;
             return actorRefToByteString(actorRef);
-        } else if (containerData instanceof ByteString) {
+        } else if (containerData instanceof ByteString && field.getName().equalsIgnoreCase("cause")){
+            return null;
+        }else if (containerData instanceof ByteString ) {
             ByteString bytString = (ByteString) containerData;
             return byteStringToActorRef(bytString, system);
         } else if (containerData instanceof Enumeration.Value) {
@@ -232,7 +240,9 @@ public class JavaTransformerUtility implements ReflectionUtility {
             String enumerationClassName = findEnumerationClassName(field);
             GeneratedEnum value = (GeneratedEnum) containerData;
             return ScalaTransformerUtility.convertGeneratedEnumValueToEnumerationValue(enumerationClassName, value.index());
-        } else {
+        } else if(containerData instanceof APIServerException){
+            return null;
+        }else {
             return resolveNestedObjects(containerData, system);
         }
     }

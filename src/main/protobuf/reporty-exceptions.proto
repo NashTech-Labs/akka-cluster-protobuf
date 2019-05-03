@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  package_name: "com.knoldus.protobuf.cluster.exception"
+  flat_package: true
+};
+
+enum ErrorCodesProto{
+    SMS_WRONG_VERIFICATION = 0;
+    SMS_PARSE_ERROR = 1;
+    SMS_VERIFICATION_NO_PHONE_NUMBER = 2;
+    LOGIN_WRONG_DETAILS = 3;
+    FACEBOOK_ACCESS_FAIL = 4;
+    FACEBOOK_LOGIN_FAIL = 5;
+    SIGNUP_EXISTING_USER = 6;
+    LOGIN_SERVER_ERROR = 7;
+    NO_FREE_SIP_CLIENT = 8;
+    WRONG_CREDENTIALS = 9;
+    CANNOT_UPDATE_DB = 10;
+    NON_EXISTENT_CNC_ID = 11;
+    NO_CNC_CONNECTED = 12;
+    INNER_API_SERVER_ERROR = 13;
+    MISSING_CONFIGURATION = 14;
+    API_ERROR = 15;
+    NOT_IMPLEMENTED = 16;
+    USER_CANCELED_REQUEST = 17;
+    TRYING_UPDATE_INVALID_LINK = 18;
+    UNKNOWN_ERROR = 19;
+    UNSUPPORTED_API_VERSION = 20;
+    NO_REPORTEAM = 21;
+    CLIENT_ERROR = 22;
+    SMS_VERIFICATION_EXPIRED = 23;
+    WATCHME_SESSION_NON_EXISTENT = 24;
+    NOT_EXISTING_USER = 25;
+    VOICENTER_API_ERROR = 26;
+    NO_ORGANIZATION_CODE = 27;
+    ERROR_WITH_IGNORE_LOG = 28;
+    NO_PHONE_NUMBER_IN_ORGANIZATION = 29;
+    API_ABUSE = 30;
+    REPORT_EXPIRED = 31;
+    UNSUPPORTED_OPERATION = 32;
+    INVALID_USER_TYPE_FOR_UPDATE = 33;
+    CANNOT_PREDICT_INDOOR_LOCATION = 34;
+    CANNOT_BUILD_CLASSIFIER = 35;
+    UNAUTHORIZED = 36;
+    PARSING_ERROR = 37;
+}
+
+message StackTraceElementProto {
+    string className = 1;
+    string methodName = 2;
+    string fileName = 3;
+    int32 lineNumber = 4;
+}
+
+message APIExceptionProto {
+    ErrorCodesProto error = 1;
+    string info = 2;
+    string className = 4;
+    string message = 5;
+    repeated StackTraceElementProto stackTrace = 6;
+}

@@ -1,6 +1,7 @@
 package com.knoldus.protobuf.cluster
 
 import com.knoldus.protobuf.cluster.ReflectionUtility.PROTO_SUFFIX
+import com.knoldus.protobuf.cluster.exception.{APIExceptionProto, APIServerException, ErrorCodesProto, StackTraceElementProto}
 import scalapb.{GeneratedEnumCompanion, GeneratedMessageCompanion}
 
 import scala.reflect.runtime.universe

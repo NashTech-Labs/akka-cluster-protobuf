@@ -1,0 +1,26 @@
+/*
+syntax = "proto2";
+
+import "scalapb/scalapb.proto";
+import "google/protobuf/wrappers.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  package_name: "com.knoldus.protobuf.cluster.exception"
+  flat_package: true
+};
+
+
+message StackTraceElement {
+    required string className = 1;
+    required string methodName = 2;
+    required string fileName = 3;
+    required int32 lineNumber = 4;
+}
+
+message Throwable {
+    required string className = 1;
+    optional string message = 2;
+    optional Throwable cause = 3;
+    repeated StackTraceElement stackTrace = 4;
+}*/

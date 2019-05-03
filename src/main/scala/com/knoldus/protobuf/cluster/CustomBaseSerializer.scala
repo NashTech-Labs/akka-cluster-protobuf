@@ -10,8 +10,17 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
         o match {
             case message : ProtobufSerializable => {
                 println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
-                val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message)
-                ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
+                val holder = message.asInstanceOf[ThrowableHolder]
+                holder.cause.map { ex =>
+                    val cause : Array[Byte] = ObjectSerializer.serializeThrowableUsingJavaSerializable(ex)
+                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, cause)
+                    ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
+                }.getOrElse {
+                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, null)
+                    ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
+                }
+//                val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, null)
+//                ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
             }
             case _ => Array.empty
         }
