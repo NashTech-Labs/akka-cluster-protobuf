@@ -14,7 +14,10 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
                 println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
                 val holder = message.asInstanceOf[ThrowableHolder]
                 holder.cause.map { ex =>
+                    println(" ???????????????????????????????????????????????????? " + ex)
                     val cause : Array[Byte] = throwableSupport.serializeThrowable(ex)
+                    val some : Throwable = throwableSupport.deserializeThrowable(cause)
+                    println(" =================================================================== "+some)
                     val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, cause)
                     ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
                 }.getOrElse {

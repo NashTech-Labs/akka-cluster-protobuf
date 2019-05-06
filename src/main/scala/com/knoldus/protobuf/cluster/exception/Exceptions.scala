@@ -17,6 +17,12 @@ class APIServerException(error : ErrorCodes.ErrorCodes, info : Option[String], c
     override def toString = s"${getClass.getName}($error,$info,$cause)"
 }
 
-case class ModelManagerException(error : ErrorCodes.ErrorCodes = ErrorCodes.INNER_API_SERVER_ERROR, info : String = null, cause : Throwable = null) extends APIServerException(error, Option(info), Option(cause))
+case class ModelManagerException(error : ErrorCodes.ErrorCodes = ErrorCodes.INNER_API_SERVER_ERROR, info : String = null, cause : Throwable = null)
+    extends APIServerException(error, Option(info), Option(cause)) {
+    def this(info : String) = this(ErrorCodes.INNER_API_SERVER_ERROR, info, null)
+}
 
-case class MyCustomException(message : String, cause : Option[Throwable] = None) extends AkkaException(message, cause.getOrElse(null))
+@SerialVersionUID(1L)
+class MyCustomException(message : String, cause : Option[Throwable] = None) extends AkkaException(message, cause.getOrElse(null)) {
+    def this(message : String) = this(message, None)
+}

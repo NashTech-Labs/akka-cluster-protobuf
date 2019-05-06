@@ -1,10 +1,11 @@
 package com.knoldus.protobuf.cluster
 
+import akka.AkkaException
 import akka.actor.Status.{Failure, Status, Success}
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.routing.FromConfig
-import com.knoldus.protobuf.cluster.exception.ModelManagerException
+import com.knoldus.protobuf.cluster.exception.{ErrorCodes, ModelManagerException, MyCustomException}
 import com.typesafe.config.ConfigFactory
 
 class Game extends Actor with ActorLogging {
@@ -40,7 +41,7 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(21, 22, 23, 24, 25),
             stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
             RewardsPoint(self)
-        ).initCause(ModelManagerException()))
+        ).initCause(ModelManagerException(info = "Is it work fine ????????? ")))
 
         /*pingPong ! GameMessage(
             msg = "Ding",
