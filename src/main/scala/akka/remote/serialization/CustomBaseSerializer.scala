@@ -1,18 +1,20 @@
-package com.knoldus.protobuf.cluster
+package akka.remote.serialization
 
 import akka.actor.ExtendedActorSystem
+import akka.remote.serialization.JavaTransformerUtility.{createInstanceOfClassFromProtoClass, createInstanceOfProtoClassFromClass}
 import akka.serialization.BaseSerializer
-import JavaTransformerUtility.{createInstanceOfClassFromProtoClass, createInstanceOfProtoClassFromClass}
+import com.knoldus.protobuf.cluster.{ObjectSerializer, ProtobufSerializable, ThrowableHolder}
 
 class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializer
 {
+    private val throwableSupport = new ThrowableSupport(system)
     override def toBinary(o : AnyRef) : Array[Byte] = {
         o match {
             case message : ProtobufSerializable => {
                 println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
                 val holder = message.asInstanceOf[ThrowableHolder]
                 holder.cause.map { ex =>
-                    val cause : Array[Byte] = ObjectSerializer.serializeThrowableUsingJavaSerializable(ex)
+                    val cause : Array[Byte] = throwableSupport.serializeThrowable(ex)
                     val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, cause)
                     ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
                 }.getOrElse {

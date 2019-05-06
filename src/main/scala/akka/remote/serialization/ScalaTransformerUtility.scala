@@ -1,4 +1,4 @@
-package com.knoldus.protobuf.cluster
+package akka.remote.serialization
 
 import com.knoldus.protobuf.cluster.ReflectionUtility.PROTO_SUFFIX
 import scalapb.{GeneratedEnumCompanion, GeneratedMessageCompanion}

@@ -1,10 +1,11 @@
-package com.knoldus.protobuf.cluster;
+package akka.remote.serialization;
 
 import akka.actor.ActorRef;
 import akka.actor.ExtendedActorSystem;
 import akka.remote.WireFormats;
 import akka.remote.serialization.ProtobufSerializer;
 import com.google.protobuf.ByteString;
+import com.knoldus.protobuf.cluster.*;
 import com.knoldus.protobuf.cluster.exception.APIServerException;
 import scala.Enumeration;
 import scala.Option;
@@ -259,7 +260,8 @@ public class JavaTransformerUtility implements ReflectionUtility {
         } else if (containerData instanceof ThrowableProto) {
             ThrowableProto throwableProto = (ThrowableProto) containerData;
             ByteString bytString = throwableProto.exception();
-            return ObjectSerializer.deserializeThrowableUsingJavaSerializable(bytString.toByteArray());
+            ThrowableSupport throwableSupport = new ThrowableSupport(system);
+            return throwableSupport.deserializeThrowable(bytString.toByteArray());
         } else if (containerData instanceof ByteString) {
             ByteString bytString = (ByteString) containerData;
             return byteStringToActorRef(bytString, system);

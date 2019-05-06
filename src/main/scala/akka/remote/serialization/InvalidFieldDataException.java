@@ -1,4 +1,4 @@
-package com.knoldus.protobuf.cluster;
+package akka.remote.serialization;
 
 class InvalidFieldDataException extends RuntimeException {
     public InvalidFieldDataException(String message, Exception cause) {

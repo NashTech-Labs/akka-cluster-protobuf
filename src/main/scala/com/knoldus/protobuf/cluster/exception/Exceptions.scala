@@ -18,3 +18,5 @@ class APIServerException(error : ErrorCodes.ErrorCodes, info : Option[String], c
 }
 
 case class ModelManagerException(error : ErrorCodes.ErrorCodes = ErrorCodes.INNER_API_SERVER_ERROR, info : String = null, cause : Throwable = null) extends APIServerException(error, Option(info), Option(cause))
+
+case class MyCustomException(message : String, cause : Option[Throwable] = None) extends AkkaException(message, cause.getOrElse(null))
