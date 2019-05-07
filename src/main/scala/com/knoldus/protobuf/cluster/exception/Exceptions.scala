@@ -2,6 +2,8 @@ package com.knoldus.protobuf.cluster.exception
 
 import akka.AkkaException
 
+import scala.util.Try
+
 class APIServerException(error : ErrorCodes.ErrorCodes, info : Option[String], cause : Option[Throwable]) extends AkkaException(error.toString, cause.getOrElse(null))
 {
     //NOTE:: AD - log is done at exception constructor so that Takipi could capture the parameters at the moment of error
@@ -19,7 +21,7 @@ class APIServerException(error : ErrorCodes.ErrorCodes, info : Option[String], c
 
 case class ModelManagerException(error : ErrorCodes.ErrorCodes = ErrorCodes.INNER_API_SERVER_ERROR, info : String = null, cause : Throwable = null)
     extends APIServerException(error, Option(info), Option(cause)) {
-    def this(info : String) = this(ErrorCodes.INNER_API_SERVER_ERROR, info, null)
+    def this(info : String) = this(Try(ErrorCodes.withName(info)).toOption.getOrElse(ErrorCodes.API_ABUSE),info, null)
 }
 
 @SerialVersionUID(1L)

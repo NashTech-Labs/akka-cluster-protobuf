@@ -8,20 +8,17 @@ import com.knoldus.protobuf.cluster.{ObjectSerializer, ProtobufSerializable, Thr
 class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializer
 {
     private val throwableSupport = new ThrowableSupport(system)
+
     override def toBinary(o : AnyRef) : Array[Byte] = {
         o match {
             case message : ProtobufSerializable => {
                 println(s">>>>>>>>>>>>>>>>>>> Serialize $message Message <<<<<<<<<<<<<<<<<<<< ")
                 val holder = message.asInstanceOf[ThrowableHolder]
-                holder.cause.map { ex =>
-                    println(" ???????????????????????????????????????????????????? " + ex)
-                    val cause : Array[Byte] = throwableSupport.serializeThrowable(ex)
-                    val some : Throwable = throwableSupport.deserializeThrowable(cause)
-                    println(" =================================================================== "+some)
-                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, cause)
+                holder.cause.map { cause =>
+                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, cause, throwableSupport)
                     ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
                 }.getOrElse {
-                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, null)
+                    val anyRef : AnyRef = createInstanceOfProtoClassFromClass(message.getClass.getName, message.getClass, message, null, throwableSupport)
                     ScalaTransformerUtility.invokeToByteArrayMethod(anyRef.getClass, anyRef)
                 }
             }
@@ -36,7 +33,7 @@ class CustomBaseSerializer(val system: ExtendedActorSystem) extends BaseSerializ
             case Some(clazz) if classOf[ProtobufSerializable].isAssignableFrom(clazz) => {
                 println(s">>>>>>>>>>>>>>>>>>> De-Serialize ${clazz.getName} Message <<<<<<<<<<<<<<<<<<<< ")
                 val data : AnyRef = ScalaTransformerUtility.invokeParseFromMethod(clazz, bytes)
-                createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system)
+                createInstanceOfClassFromProtoClass(data.getClass.getName, data.getClass, data, system, throwableSupport)
             }
             case _ => throw new ClassNotFoundException("Invalid class type for De-Serialize")
         }

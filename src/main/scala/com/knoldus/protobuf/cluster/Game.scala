@@ -41,7 +41,7 @@ class Game extends Actor with ActorLogging {
             levelsV = Vector(21, 22, 23, 24, 25),
             stages = Seq(Stage(Level(61)), Stage(Level(63)), Stage(Level(62))),
             RewardsPoint(self)
-        ).initCause(ModelManagerException(info = "Is it work fine ????????? ")))
+        ).initCause(ModelManagerException(info = "Is it work fine ????????? ", error = ErrorCodes.CANNOT_BUILD_CLASSIFIER)))
 
         /*pingPong ! GameMessage(
             msg = "Ding",
